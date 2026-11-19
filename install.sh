@@ -62,7 +62,7 @@ if [ "$SRC" != "$DEST" ]; then
   # .git meenemen zodat updates via git kunnen.
   cp -a "$SRC/." "$DEST/"
 fi
-chmod +x "$DEST/install.sh" "$DEST/update.sh" "$DEST/kiosk/start-browser.sh" "$DEST/kiosk/diagnose.sh"
+chmod +x "$DEST/install.sh" "$DEST/update.sh" "$DEST/kiosk/start-browser.sh" "$DEST/kiosk/diagnose.sh" "$DEST/kiosk/touch-kalibratie.sh"
 
 log "Configuratie"
 if [ -d "$BOOT" ] && [ ! -f "$BOOT/hasioscherm.yaml" ]; then

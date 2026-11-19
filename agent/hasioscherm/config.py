@@ -40,6 +40,7 @@ class Config:
     naam: str = "Scherm woonkamer"
     id: str = ""
     rotatie: int = 90
+    touch_draaiing: str = "auto"
     ha_url: str = ""
     dashboard_url: str = "standaard"   # "standaard" = meegeleverd dashboard op het scherm zelf
     browser: str = "cog"
@@ -137,6 +138,7 @@ def load_config() -> Config:
     c.naam = str(_get(raw, "scherm", "naam", default=c.naam))
     c.id = str(_get(raw, "scherm", "id", default="") or "")
     c.rotatie = int(_get(raw, "scherm", "rotatie", default=c.rotatie))
+    c.touch_draaiing = str(_get(raw, "scherm", "touch_draaiing", default=c.touch_draaiing))
     c.ha_url = str(_get(raw, "homeassistant", "url", default=c.ha_url))
     c.dashboard_url = str(_get(raw, "dashboard", "url", default=c.dashboard_url))
     c.browser = str(_get(raw, "dashboard", "browser", default=c.browser))

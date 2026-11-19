@@ -38,6 +38,9 @@ fi
   echo "== invoerapparaten =="
   grep -E '^N: Name=' /proc/bus/input/devices 2>&1
   echo
+  echo "== touch-kalibratie =="
+  cat /run/udev/rules.d/99-hasioscherm-touch.rules 2>&1
+  echo
   echo "== i2c-apparaten =="
   for d in /sys/bus/i2c/devices/*; do [ -e "$d/name" ] && echo "$(basename "$d"): $(cat "$d/name")"; done 2>&1
   echo

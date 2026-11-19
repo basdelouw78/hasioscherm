@@ -322,7 +322,8 @@ class SetupWizard:
         g = inst["gedrag"]
         d = {
             "setup": {"klaar": True, "datum": datetime.now().isoformat(timespec="seconds")},
-            "scherm": {"naam": inst["naam"], "id": "", "rotatie": inst["rotatie"]},
+            "scherm": {"naam": inst["naam"], "id": "", "rotatie": inst["rotatie"],
+                       "touch_draaiing": c.touch_draaiing},
             "homeassistant": {"url": inst["ha_url"], "koppeling": inst["koppeling"], "token": ha_token},
             "dashboard": {"url": inst["dashboard_url"], "browser": inst["browser"], "stijl": inst["stijl"]},
             "mqtt": {"host": inst["mqtt"]["host"], "port": inst["mqtt"]["port"],

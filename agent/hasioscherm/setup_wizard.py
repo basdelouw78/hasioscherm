@@ -131,7 +131,12 @@ class SetupWizard:
         ok, melding = wifi_verbind(ssid, str(body.get("wachtwoord", "")))
         if ok:
             schrijf_wijziging(f"Wifi verbonden met '{ssid}'")
-        return (200 if ok else 400), {"ok": ok, "melding": melding, "status": netwerk_status()}
+        else:
+            log.warning("Wifi verbinden met '%s' mislukt: %s", ssid, melding)
+        antwoord = {"ok": ok, "melding": melding, "status": netwerk_status()}
+        if not ok:
+            antwoord["fout"] = melding
+        return (200 if ok else 400), antwoord
 
     def r_ha_test(self, body, q):
         url = normaliseer_url(str(body.get("url", "")))
@@ -487,8 +492,34 @@ def wifi_scan() -> list[dict]:
 
 
 def wifi_verbind(ssid: str, wachtwoord: str) -> tuple[bool, str]:
+    # Wifi kan geblokkeerd zijn (rfkill) of uit staan; eerst aanzetten.
+    try:
+        subprocess.run(["rfkill", "unblock", "wifi"], capture_output=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    _nmcli(["radio", "wifi", "on"])
+    # Een eerder mislukte poging laat een profiel achter dat volgende pogingen
+    # (met het goede wachtwoord) kan laten mislukken.
+    _nmcli(["connection", "delete", "id", ssid])
     args = ["device", "wifi", "connect", ssid]
     if wachtwoord:
         args += ["password", wachtwoord]
     rc, out = _nmcli(args, timeout=45)
-    return rc == 0, ("Verbonden" if rc == 0 else out)
+    if rc == 0:
+        return True, "Verbonden"
+    return False, wifi_fout_uitleg(out)
+
+
+def wifi_fout_uitleg(out: str) -> str:
+    o = out.lower()
+    if "secrets were required" in o or "802-11-wireless-security.psk" in o or "property is invalid" in o:
+        uitleg = "Wachtwoord onjuist (of te kort)."
+    elif "no network with ssid" in o:
+        uitleg = "Netwerk niet gevonden. Staat het scherm binnen bereik?"
+    elif "no wi-fi device" in o or "not available" in o or "radio" in o:
+        uitleg = "Wifi op het scherm is niet beschikbaar of staat uit."
+    elif "timeout" in o or "timed out" in o:
+        uitleg = "Geen antwoord van het netwerk (time-out)."
+    else:
+        uitleg = "Verbinden mislukt."
+    return f"{uitleg} ({out.strip()[:200]})" if out.strip() else uitleg

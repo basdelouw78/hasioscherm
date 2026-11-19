@@ -1,0 +1,25 @@
+[Unit]
+Description=hasioscherm agent (MQTT-koppeling met Home Assistant)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=PYTHONPATH=/opt/hasioscherm/agent
+Environment=PYTHONUNBUFFERED=1
+# Instellingen die HA wijzigt, op de boot-partitie (blijft schrijfbaar,
+# ook als het systeem later read-only wordt).
+Environment=HASIOSCHERM_STATE=/boot/firmware/hasioscherm-state.json
+ExecStart=/usr/bin/python3 -m hasioscherm
+Restart=always
+RestartSec=5
+# De agent meldt elke seconde dat hij leeft; blijft dat 60 s uit, dan
+# herstart systemd hem.
+WatchdogSec=60
+NotifyAccess=main
+RuntimeDirectory=hasioscherm
+RuntimeDirectoryPreserve=yes
+StateDirectory=hasioscherm
+
+[Install]
+WantedBy=multi-user.target

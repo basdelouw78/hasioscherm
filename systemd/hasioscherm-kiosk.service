@@ -1,0 +1,22 @@
+[Unit]
+Description=hasioscherm kiosk (cage + browser)
+After=systemd-user-sessions.service hasioscherm-agent.service
+Wants=hasioscherm-agent.service
+Conflicts=getty@tty1.service
+
+[Service]
+User=kiosk
+PAMName=login
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+Environment=XDG_SESSION_TYPE=wayland
+ExecStart=/usr/bin/cage -d -- /opt/hasioscherm/kiosk/start-browser.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=graphical.target

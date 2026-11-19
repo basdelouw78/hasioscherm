@@ -1,0 +1,66 @@
+blueprint:
+  name: hasioscherm - meldingen (offline / te warm)
+  description: >
+    Stuurt een pushmelding als een hasioscherm offline gaat of te warm wordt.
+    Aangemaakt door de setup-wizard van hasioscherm.
+  domain: automation
+  source_url: https://github.com/basdelouw78/hasioscherm/blob/main/blueprints/hasioscherm_meldingen.yaml
+  input:
+    scherm_naam:
+      name: Naam van het scherm
+      selector:
+        text: {}
+    online_entiteit:
+      name: Entiteit die onbeschikbaar wordt als het scherm offline is
+      description: Bijvoorbeeld de IP-adres-sensor van het scherm.
+      selector:
+        entity: {}
+    te_warm_entiteit:
+      name: Te-warm-sensor van het scherm
+      selector:
+        entity:
+          domain: binary_sensor
+    notify_dienst:
+      name: Meldingsdienst
+      description: Bijvoorbeeld notify.mobile_app_telefoon
+      selector:
+        text: {}
+    offline_minuten:
+      name: Melden na zoveel minuten offline
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: min
+
+mode: queued
+
+triggers:
+  - trigger: state
+    entity_id: !input online_entiteit
+    to: unavailable
+    for:
+      minutes: !input offline_minuten
+    id: offline
+  - trigger: state
+    entity_id: !input online_entiteit
+    from: unavailable
+    id: online
+  - trigger: state
+    entity_id: !input te_warm_entiteit
+    to: "on"
+    id: warm
+
+variables:
+  naam: !input scherm_naam
+  dienst: !input notify_dienst
+
+actions:
+  - action: "{{ dienst }}"
+    data:
+      title: "{{ naam }}"
+      message: >-
+        {% if trigger.id == 'offline' %}Het scherm is offline.
+        {% elif trigger.id == 'online' %}Het scherm is weer online.
+        {% else %}Het scherm is te warm!{% endif %}

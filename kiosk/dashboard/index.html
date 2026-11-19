@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="nl" data-thema="donker">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hasioscherm</title>
+<style>
+  :root { --r: 18px; }
+  html[data-thema="donker"] { --bg: #0e1116; --paneel: #161b22; --tegel: #1b2129; --rand: #262d37; --tekst: #e8eaed;
+    --zacht: #98a2ad; --aan: #f5c451; --aan-bg: #2b2616; --accent: #4f8cff; --fout: #ef4444; }
+  html[data-thema="licht"] { --bg: #f3f4f6; --paneel: #ffffff; --tegel: #ffffff; --rand: #e3e6ea; --tekst: #15181d;
+    --zacht: #5f6b77; --aan: #b7791f; --aan-bg: #fff4d6; --accent: #2563eb; --fout: #dc2626; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--tekst); overflow: hidden;
+    font: 22px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
+    user-select: none; -webkit-user-select: none; cursor: none; }
+  #app { display: grid; grid-template-columns: 132px 1fr; height: 100%; }
+  nav { background: var(--paneel); border-right: 1px solid var(--rand); display: flex; flex-direction: column;
+    align-items: center; padding: 24px 0; gap: 10px; }
+  nav button { width: 108px; height: 108px; border: 0; border-radius: var(--r); background: transparent; color: var(--zacht);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 17px; }
+  nav button svg { width: 38px; height: 38px; }
+  nav button.actief { background: var(--tegel); color: var(--tekst); box-shadow: inset 0 0 0 1px var(--rand); }
+  nav .vul { flex: 1; }
+  nav .verbinding { width: 14px; height: 14px; border-radius: 50%; background: var(--fout); margin-bottom: 8px; }
+  nav .verbinding.ok { background: #22c55e; }
+  main { overflow-y: auto; padding: 36px 44px; }
+  h2 { margin: 0 0 18px; font-size: 26px; font-weight: 600; color: var(--zacht); }
+  .melding { padding: 16px 20px; border-radius: var(--r); background: var(--paneel); border: 1px solid var(--rand); margin-bottom: 20px; }
+  .melding.fout { border-color: var(--fout); }
+
+  /* home */
+  .home { display: grid; grid-template-columns: 1.1fr 1fr; gap: 36px; height: 100%; }
+  .klok { font-size: 168px; font-weight: 200; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .datum { font-size: 34px; color: var(--zacht); margin: 8px 0 34px; }
+  .datum::first-letter { text-transform: uppercase; }
+  .weer { display: flex; gap: 28px; align-items: center; background: var(--paneel); border: 1px solid var(--rand);
+    border-radius: var(--r); padding: 26px 30px; margin-bottom: 26px; }
+  .weer svg { width: 92px; height: 92px; color: var(--aan); flex: none; }
+  .weer .temp { font-size: 64px; font-weight: 300; line-height: 1; }
+  .weer .info { color: var(--zacht); font-size: 22px; margin-top: 6px; }
+  .personen { display: flex; gap: 14px; flex-wrap: wrap; }
+  .persoon { display: flex; align-items: center; gap: 12px; background: var(--paneel); border: 1px solid var(--rand);
+    border-radius: 999px; padding: 10px 22px 10px 12px; }
+  .persoon .bol { width: 44px; height: 44px; border-radius: 50%; background: var(--tegel); display: grid; place-items: center;
+    font-weight: 700; color: var(--zacht); background-size: cover; background-position: center; }
+  .persoon.thuis .bol { box-shadow: 0 0 0 3px #22c55e; }
+  .persoon small { display: block; color: var(--zacht); font-size: 16px; }
+
+  /* tegels */
+  .tegels { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+  .tegel { background: var(--tegel); border: 1px solid var(--rand); border-radius: var(--r); padding: 18px 20px; min-height: 150px;
+    display: flex; flex-direction: column; justify-content: space-between; gap: 10px; position: relative; }
+  .tegel.klikbaar:active { transform: scale(.97); }
+  .tegel.aan { background: var(--aan-bg); border-color: var(--aan); }
+  .tegel .ico { width: 42px; height: 42px; color: var(--zacht); }
+  .tegel.aan .ico { color: var(--aan); }
+  .tegel .naam { font-size: 21px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .tegel .staat { color: var(--zacht); font-size: 18px; }
+  .tegel .knoppen { display: flex; gap: 10px; }
+  .tegel .knoppen button { flex: 1; height: 56px; border: 0; border-radius: 12px; background: var(--paneel); color: var(--tekst);
+    font: inherit; font-size: 26px; box-shadow: inset 0 0 0 1px var(--rand); }
+  .tegel.niet .naam, .tegel.niet .staat { opacity: .45; }
+  .ruimtes-kort { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .ruimte-kort { background: var(--paneel); border: 1px solid var(--rand); border-radius: var(--r); padding: 18px 20px; }
+  .ruimte-kort b { display: block; font-size: 22px; }
+  .ruimte-kort span { color: var(--zacht); font-size: 18px; }
+  .chips { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 22px; }
+  .chips button { flex: none; border: 0; border-radius: 999px; padding: 16px 26px; background: var(--paneel); color: var(--tekst);
+    font: inherit; box-shadow: inset 0 0 0 1px var(--rand); }
+  .chips button.gekozen { background: var(--accent); color: #fff; box-shadow: none; }
+  .scherm-info { display: grid; grid-template-columns: 260px 1fr; gap: 12px 24px; max-width: 900px; font-size: 22px; }
+  .scherm-info dt { color: var(--zacht); }
+  .scherm-info dd { margin: 0; }
+  .knop { display: inline-block; margin-top: 30px; padding: 20px 34px; border-radius: var(--r); background: var(--accent);
+    color: #fff; text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="app">
+  <nav id="nav"></nav>
+  <main id="inhoud"><div class="melding">Dashboard laden…</div></main>
+</div>
+<script>
+"use strict";
+/* ---------- iconen (eigen, eenvoudige SVG's) ---------- */
+const I = {
+  home: '<path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/>',
+  ruimtes: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
+  scherm: '<path d="M3 5h18v12H3zM8 21h8M12 17v4"/>',
+  light: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.9.7 1.5 1.6 1.5 2.6V17h4v-.5c0-1 .6-1.9 1.5-2.6A6 6 0 0 0 12 3z"/>',
+  switch: '<path d="M12 3v8M7.1 6.3a7 7 0 1 0 9.8 0"/>',
+  fan: '<path d="M12 12c0-4 1-8 4-8s3 4-4 8zm0 0c4 0 8 1 8 4s-4 3-8-4zm0 0c0 4-1 8-4 8s-3-4 4-8zm0 0c-4 0-8-1-8-4s4-3 8 4z"/>',
+  cover: '<path d="M4 4h16v16H4zM4 9h16M4 14h16"/>',
+  climate: '<path d="M10 14V5a2 2 0 1 1 4 0v9a4 4 0 1 1-4 0z"/>',
+  media_player: '<path d="M5 9h4l5-4v14l-5-4H5zM17 9a4 4 0 0 1 0 6"/>',
+  sensor: '<path d="M10 14V5a2 2 0 1 1 4 0v9a4 4 0 1 1-4 0z"/>',
+  binary_sensor: '<path d="M6 3h12v18H6zM14 12h1"/>',
+  lock: '<path d="M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4"/>',
+  input_boolean: '<path d="M7 7h10a5 5 0 0 1 0 10H7A5 5 0 0 1 7 7zm10 2.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/>',
+  zon: '<circle cx="12" cy="12" r="4.5"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1"/>',
+  wolk: '<path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/>',
+  regen: '<path d="M7 14h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 5.5 4.3 4.3 0 0 0 7 14zM8 17l-1 3M12 17l-1 3M16 17l-1 3"/>',
+  maan: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+};
+const svg = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${I[n] || I.sensor}</svg>`;
+const esc = (t) => String(t ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+const WEER = {"clear-night":"Helder","cloudy":"Bewolkt","exceptional":"Uitzonderlijk","fog":"Mist","hail":"Hagel",
+  "lightning":"Onweer","lightning-rainy":"Onweer en regen","partlycloudy":"Half bewolkt","pouring":"Zware regen",
+  "rainy":"Regen","snowy":"Sneeuw","snowy-rainy":"Natte sneeuw","sunny":"Zonnig","windy":"Winderig","windy-variant":"Winderig"};
+const WEER_ICO = (s) => s === "sunny" ? "zon" : s === "clear-night" ? "maan" : /rain|pour|snow|hail|lightning/.test(s) ? "regen" : "wolk";
+const STAAT = {on:"Aan",off:"Uit",open:"Open",closed:"Dicht",opening:"Gaat open",closing:"Gaat dicht",playing:"Speelt",
+  paused:"Gepauzeerd",idle:"Inactief",standby:"Stand-by",unavailable:"Niet beschikbaar",unknown:"Onbekend",
+  home:"Thuis",not_home:"Weg",locked:"Op slot",unlocked:"Niet op slot",heat:"Verwarmen",cool:"Koelen",auto:"Automatisch",heat_cool:"Automatisch"};
+const DOMEINEN = ["light","switch","fan","cover","climate","media_player","input_boolean","lock","sensor","binary_sensor"];
+const SCHAKELBAAR = ["light","switch","fan","input_boolean","cover"];
+
+/* ---------- toestand ---------- */
+const D = { cfg: null, states: {}, areas: [], ents: {}, devs: {}, pagina: "home", ruimte: null, ok: false, fout: "" };
+let ws = null, wsId = 1;
+const wacht = {};
+
+function send(msg) {
+  return new Promise((res, rej) => {
+    const id = wsId++; wacht[id] = {res, rej};
+    ws.send(JSON.stringify({id, ...msg}));
+    setTimeout(() => { if (wacht[id]) { delete wacht[id]; rej(new Error("time-out")); } }, 15000);
+  });
+}
+
+async function laadCfg() {
+  const r = await fetch("/api/dashboard", {cache: "no-store"});
+  D.cfg = await r.json();
+  const thema = D.cfg.stijl === "auto" ? (D.cfg.periode === "nacht" ? "donker" : "licht") : D.cfg.stijl;
+  document.documentElement.dataset.thema = thema === "licht" ? "licht" : "donker";
+}
+
+function verbind() {
+  if (!D.cfg.ha_url || !D.cfg.token) {
+    D.fout = !D.cfg.ha_url ? "Nog geen Home Assistant ingesteld. Doorloop de setup." :
+      "Geen token voor Home Assistant. Kies in de setup 'automatisch koppelen' of vul een token in.";
+    return teken();
+  }
+  const u = new URL(D.cfg.ha_url);
+  ws = new WebSocket((u.protocol === "https:" ? "wss://" : "ws://") + u.host + "/api/websocket");
+  ws.onmessage = async (e) => {
+    const m = JSON.parse(e.data);
+    if (m.type === "auth_required") ws.send(JSON.stringify({type: "auth", access_token: D.cfg.token}));
+    else if (m.type === "auth_invalid") { D.fout = "Home Assistant weigert de token van dit scherm."; teken(); }
+    else if (m.type === "auth_ok") { D.ok = true; D.fout = ""; await start(); }
+    else if (m.type === "result" && wacht[m.id]) {
+      const w = wacht[m.id]; delete wacht[m.id];
+      m.success ? w.res(m.result) : w.rej(new Error(m.error?.message || "fout"));
+    } else if (m.type === "event" && m.event?.event_type === "state_changed") {
+      const d = m.event.data;
+      if (d.new_state) D.states[d.entity_id] = d.new_state; else delete D.states[d.entity_id];
+      plan();
+    }
+  };
+  ws.onclose = () => { D.ok = false; teken(); setTimeout(verbind, 5000); };
+  ws.onerror = () => {};
+}
+
+async function start() {
+  const [states, areas, ents, devs] = await Promise.all([
+    send({type: "get_states"}),
+    send({type: "config/area_registry/list"}).catch(() => []),
+    send({type: "config/entity_registry/list"}).catch(() => []),
+    send({type: "config/device_registry/list"}).catch(() => []),
+  ]);
+  D.states = Object.fromEntries(states.map(s => [s.entity_id, s]));
+  D.areas = areas.sort((a, b) => a.name.localeCompare(b.name, "nl"));
+  D.ents = Object.fromEntries(ents.map(e => [e.entity_id, e]));
+  D.devs = Object.fromEntries(devs.map(d => [d.id, d]));
+  await send({type: "subscribe_events", event_type: "state_changed"});
+  teken();
+}
+
+/* ---------- gegevens ---------- */
+const naam = (s) => s.attributes.friendly_name || s.entity_id;
+function ruimteVan(id) {
+  const e = D.ents[id];
+  if (!e) return null;
+  return e.area_id || (e.device_id && D.devs[e.device_id]?.area_id) || null;
+}
+function zichtbaar(id) {
+  const dom = id.split(".")[0];
+  if (!DOMEINEN.includes(dom)) return false;
+  const e = D.ents[id];
+  if (e && (e.hidden_by || e.disabled_by || e.entity_category)) return false;
+  const s = D.states[id];
+  if (!s) return false;
+  if (dom === "sensor") return ["temperature", "humidity"].includes(s.attributes.device_class);
+  if (dom === "binary_sensor") return ["door", "window", "opening", "motion", "occupancy", "presence"].includes(s.attributes.device_class);
+  return true;
+}
+function entiteitenIn(area) {
+  return Object.keys(D.states).filter(id => zichtbaar(id) && ruimteVan(id) === area)
+    .sort((a, b) => DOMEINEN.indexOf(a.split(".")[0]) - DOMEINEN.indexOf(b.split(".")[0]) || naam(D.states[a]).localeCompare(naam(D.states[b]), "nl"));
+}
+function isAan(s) { return ["on", "open", "playing", "heat", "cool", "heat_cool", "auto", "unlocked"].includes(s.state); }
+function staatTekst(s) {
+  const dom = s.entity_id.split(".")[0], a = s.attributes;
+  if (dom === "sensor") return `${s.state} ${a.unit_of_measurement || ""}`.trim();
+  if (dom === "light" && s.state === "on" && a.brightness != null) return `Aan · ${Math.round(a.brightness / 2.55)}%`;
+  if (dom === "climate") return `${a.current_temperature ?? "–"}° → ${a.temperature ?? "–"}°`;
+  if (dom === "media_player" && a.media_title) return `${STAAT[s.state] || s.state} · ${a.media_title}`;
+  if (dom === "cover" && a.current_position != null) return `${STAAT[s.state] || s.state} · ${a.current_position}%`;
+  if (dom === "binary_sensor") {
+    const dc = a.device_class;
+    if (["door", "window", "opening"].includes(dc)) return s.state === "on" ? "Open" : "Dicht";
+    return s.state === "on" ? "Beweging" : "Geen beweging";
+  }
+  return STAAT[s.state] || s.state;
+}
+
+/* ---------- acties ---------- */
+async function actie(id, wat) {
+  const dom = id.split(".")[0], s = D.states[id];
+  try {
+    if (wat === "toggle") {
+      if (dom === "media_player") await send({type: "call_service", domain: dom, service: "media_play_pause", target: {entity_id: id}});
+      else await send({type: "call_service", domain: dom, service: "toggle", target: {entity_id: id}});
+    } else if (wat === "min" || wat === "plus") {
+      const stap = s.attributes.target_temp_step || 0.5;
+      const t = (s.attributes.temperature ?? s.attributes.current_temperature ?? 20) + (wat === "plus" ? stap : -stap);
+      await send({type: "call_service", domain: "climate", service: "set_temperature", target: {entity_id: id}, service_data: {temperature: Math.round(t * 10) / 10}});
+    } else if (wat === "vol_min" || wat === "vol_plus") {
+      await send({type: "call_service", domain: "media_player", service: wat === "vol_plus" ? "volume_up" : "volume_down", target: {entity_id: id}});
+    }
+  } catch (e) { D.fout = "Actie mislukt: " + e.message; teken(); setTimeout(() => { D.fout = ""; teken(); }, 4000); }
+}
+
+/* ---------- tekenen ---------- */
+function tegel(id) {
+  const s = D.states[id], dom = id.split(".")[0];
+  const niet = s.state === "unavailable";
+  const klikbaar = !niet && (SCHAKELBAAR.includes(dom) || dom === "media_player");
+  let knoppen = "";
+  if (dom === "climate" && !niet) knoppen = `<div class="knoppen"><button data-id="${id}" data-wat="min">−</button><button data-id="${id}" data-wat="plus">+</button></div>`;
+  if (dom === "media_player" && !niet && s.state !== "off") knoppen = `<div class="knoppen"><button data-id="${id}" data-wat="vol_min">−</button><button data-id="${id}" data-wat="vol_plus">+</button></div>`;
+  return `<div class="tegel ${isAan(s) ? "aan" : ""} ${niet ? "niet" : ""} ${klikbaar ? "klikbaar" : ""}" ${klikbaar ? `data-id="${id}" data-wat="toggle"` : ""}>
+    <div class="ico">${svg(dom)}</div>
+    <div><div class="naam">${esc(naam(s))}</div><div class="staat">${esc(staatTekst(s))}</div></div>${knoppen}</div>`;
+}
+
+function home() {
+  const nu = new Date();
+  const weer = Object.values(D.states).find(s => s.entity_id.startsWith("weather."));
+  const personen = Object.values(D.states).filter(s => s.entity_id.startsWith("person."));
+  const aan = Object.keys(D.states).filter(id => zichtbaar(id) && (
+    (["light", "switch", "fan", "input_boolean"].includes(id.split(".")[0]) && D.states[id].state === "on") ||
+    (id.startsWith("media_player.") && D.states[id].state === "playing")));
+  const ruimtes = D.areas.map(a => {
+    const ids = entiteitenIn(a.area_id);
+    if (!ids.length) return "";
+    const lampen = ids.filter(i => i.startsWith("light.") && D.states[i].state === "on").length;
+    const temp = ids.find(i => i.startsWith("sensor.") && D.states[i].attributes.device_class === "temperature");
+    return `<div class="ruimte-kort" data-ruimte="${a.area_id}"><b>${esc(a.name)}</b>
+      <span>${lampen ? lampen + (lampen === 1 ? " lamp aan" : " lampen aan") : "alles uit"}${temp ? " · " + esc(D.states[temp].state) + "°" : ""}</span></div>`;
+  }).join("");
+  return `<div class="home"><div>
+      <div class="klok" id="klok">${nu.toLocaleTimeString("nl-NL", {hour: "2-digit", minute: "2-digit"})}</div>
+      <div class="datum">${nu.toLocaleDateString("nl-NL", {weekday: "long", day: "numeric", month: "long"})}</div>
+      ${weer ? `<div class="weer">${svg(WEER_ICO(weer.state))}<div><div class="temp">${esc(weer.attributes.temperature ?? "–")}°</div>
+        <div class="info">${esc(WEER[weer.state] || weer.state)}${weer.attributes.humidity != null ? " · " + weer.attributes.humidity + "% vocht" : ""}${weer.attributes.wind_speed != null ? " · wind " + weer.attributes.wind_speed + " " + (weer.attributes.wind_speed_unit || "") : ""}</div></div></div>` : ""}
+      <div class="personen">${personen.map(p => `<div class="persoon ${p.state === "home" ? "thuis" : ""}">
+        <div class="bol" ${p.attributes.entity_picture ? `style="background-image:url('${esc(new URL(p.attributes.entity_picture, D.cfg.ha_url))}')"` : ""}>${p.attributes.entity_picture ? "" : esc(naam(p)[0])}</div>
+        <div>${esc(naam(p))}<small>${esc(STAAT[p.state] || p.state)}</small></div></div>`).join("")}</div>
+    </div><div>
+      <h2>Nu aan</h2>
+      ${aan.length ? `<div class="tegels">${aan.map(tegel).join("")}</div>` : `<div class="melding">Alles staat uit.</div>`}
+      ${ruimtes ? `<h2 style="margin-top:30px">Ruimtes</h2><div class="ruimtes-kort">${ruimtes}</div>` : ""}
+    </div></div>`;
+}
+
+function ruimtesPagina() {
+  const lijst = D.areas.filter(a => entiteitenIn(a.area_id).length);
+  const overig = entiteitenIn(null);
+  if (!D.ruimte) D.ruimte = lijst[0]?.area_id || "_overig";
+  const ids = D.ruimte === "_overig" ? overig : entiteitenIn(D.ruimte);
+  return `<div class="chips">${lijst.map(a => `<button data-kies="${a.area_id}" class="${D.ruimte === a.area_id ? "gekozen" : ""}">${esc(a.name)}</button>`).join("")}
+      ${overig.length ? `<button data-kies="_overig" class="${D.ruimte === "_overig" ? "gekozen" : ""}">Zonder ruimte</button>` : ""}</div>
+    ${ids.length ? `<div class="tegels">${ids.map(tegel).join("")}</div>` : `<div class="melding">Geen apparaten in deze ruimte.</div>`}`;
+}
+
+function schermPagina() {
+  const c = D.cfg || {};
+  return `<h2>Dit scherm</h2><dl class="scherm-info">
+    <dt>Naam</dt><dd>${esc(c.naam)}</dd><dt>Versie</dt><dd>${esc(c.versie)}</dd>
+    <dt>Home Assistant</dt><dd>${esc(c.ha_url || "nog niet ingesteld")}</dd>
+    <dt>Verbinding</dt><dd>${D.ok ? "Verbonden" : "Niet verbonden"}</dd>
+    <dt>Entiteiten</dt><dd>${Object.keys(D.states).length}</dd></dl>
+    <a class="knop" href="/setup/index.html">⚙ Instellingen (setup)</a>
+    <p style="color:var(--zacht);margin-top:22px">Tip: de setup is altijd te openen door <b>3 vingers 4 seconden</b> op het scherm te houden, ook vanuit een ander dashboard.</p>`;
+}
+
+function teken() {
+  const pag = [["home", "Home"], ["ruimtes", "Ruimtes"], ["scherm", "Scherm"]];
+  document.getElementById("nav").innerHTML = pag.map(([p, t]) =>
+    `<button data-pagina="${p}" class="${D.pagina === p ? "actief" : ""}">${svg(p)}${t}</button>`).join("") +
+    `<div class="vul"></div><div class="verbinding ${D.ok ? "ok" : ""}" title="verbinding"></div>`;
+  let h = D.fout ? `<div class="melding fout">${esc(D.fout)}</div>` : "";
+  if (!D.ok && !D.fout) h += `<div class="melding">Verbinden met Home Assistant…</div>`;
+  if (D.ok || D.pagina === "scherm") h += D.pagina === "home" ? home() : D.pagina === "ruimtes" ? ruimtesPagina() : schermPagina();
+  document.getElementById("inhoud").innerHTML = h;
+}
+let gepland = false;
+function plan() { if (!gepland) { gepland = true; requestAnimationFrame(() => { gepland = false; teken(); }); } }
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pagina],[data-kies],[data-ruimte],[data-id]");
+  if (!b) return;
+  if (b.dataset.pagina) { D.pagina = b.dataset.pagina; return teken(); }
+  if (b.dataset.kies) { D.ruimte = b.dataset.kies; return teken(); }
+  if (b.dataset.ruimte) { D.pagina = "ruimtes"; D.ruimte = b.dataset.ruimte; return teken(); }
+  if (b.dataset.id) { e.stopPropagation(); actie(b.dataset.id, b.dataset.wat); }
+});
+
+setInterval(() => {
+  const k = document.getElementById("klok");
+  if (k) k.textContent = new Date().toLocaleTimeString("nl-NL", {hour: "2-digit", minute: "2-digit"});
+}, 1000);
+setInterval(() => laadCfg().catch(() => {}), 5 * 60 * 1000);   // stijl dag/nacht bijwerken
+
+laadCfg().then(() => { teken(); verbind(); }).catch(() => {
+  D.fout = "Kan de instellingen van het scherm niet lezen."; teken();
+});
+</script>
+</body>
+</html>

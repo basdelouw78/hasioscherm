@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+image/stage-hasioscherm/00-install/files/
+deploy/

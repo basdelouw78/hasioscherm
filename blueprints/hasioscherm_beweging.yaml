@@ -1,0 +1,68 @@
+blueprint:
+  name: hasioscherm - scherm aan/uit bij beweging
+  description: >
+    Wekt een hasioscherm als een bewegingssensor (bijvoorbeeld een PIR van het
+    alarm) beweging ziet, en zet het optioneel uit als er een tijd geen
+    beweging meer is. Aangemaakt door de setup-wizard van hasioscherm.
+  domain: automation
+  source_url: https://github.com/basdelouw78/hasioscherm/blob/main/blueprints/hasioscherm_beweging.yaml
+  input:
+    bewegingssensor:
+      name: Bewegingssensor
+      selector:
+        entity:
+          domain: binary_sensor
+    wekken_knop:
+      name: Wekken-knop van het scherm
+      selector:
+        entity:
+          domain: button
+    backlight:
+      name: Backlight van het scherm
+      selector:
+        entity:
+          domain: light
+    uit_na_minuten:
+      name: Uit na zoveel minuten zonder beweging (0 = niet uitzetten)
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 120
+          unit_of_measurement: min
+
+mode: restart
+
+variables:
+  uit_na: !input uit_na_minuten
+
+triggers:
+  - trigger: state
+    entity_id: !input bewegingssensor
+    to: "on"
+    id: beweging
+  - trigger: state
+    entity_id: !input bewegingssensor
+    to: "off"
+    id: geen_beweging
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: beweging
+        sequence:
+          - action: button.press
+            target:
+              entity_id: !input wekken_knop
+      - conditions:
+          - condition: trigger
+            id: geen_beweging
+          - condition: template
+            value_template: "{{ uit_na | int(0) > 0 }}"
+        sequence:
+          - delay:
+              minutes: "{{ uit_na | int(0) }}"
+          - action: light.turn_off
+            target:
+              entity_id: !input backlight

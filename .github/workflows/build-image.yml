@@ -1,0 +1,99 @@
+name: Image bouwen
+
+# Een nieuwe versie uitbrengen = het versienummer in agent/hasioscherm/__init__.py
+# ophogen en naar main pushen. Deze workflow bouwt dan de image en maakt zelf de
+# tag (v<versie>) en de release aan. Bestaat die release al, dan gebeurt er niets.
+on:
+  push:
+    branches: [main]
+    paths: ["agent/hasioscherm/__init__.py"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Versie bepalen
+        id: versie
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="$(python3 -c 'import re;print(re.search(r"__version__ = \"(.+?)\"",open("agent/hasioscherm/__init__.py").read()).group(1))')"
+          echo "tag=v$v" >> "$GITHUB_OUTPUT"
+          if gh release view "v$v" >/dev/null 2>&1; then
+            echo "bestaat=1" >> "$GITHUB_OUTPUT"
+            echo "Release v$v bestaat al; niets te doen."
+          else
+            echo "bestaat=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Schijfruimte vrijmaken (pi-gen heeft ruim 15 GB nodig)
+        if: steps.versie.outputs.bestaat == '0'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
+      - name: Repo in de image-stage zetten
+        if: steps.versie.outputs.bestaat == '0'
+        run: |
+          mkdir -p image/stage-hasioscherm/00-install/files/hasioscherm
+          rsync -a --exclude image/stage-hasioscherm/00-install/files ./ \
+            image/stage-hasioscherm/00-install/files/hasioscherm/
+
+      - name: Wachtwoord voor beheergebruiker
+        if: steps.versie.outputs.bestaat == '0'
+        id: pw
+        run: |
+          if [ -n "${{ secrets.HASIOSCHERM_PASSWORD }}" ]; then
+            echo "pw=${{ secrets.HASIOSCHERM_PASSWORD }}" >> "$GITHUB_OUTPUT"
+          else
+            pw="$(openssl rand -base64 24)"
+            echo "::add-mask::$pw"
+            echo "pw=$pw" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Image bouwen met pi-gen
+        if: steps.versie.outputs.bestaat == '0'
+        uses: usimd/pi-gen-action@v1
+        id: build
+        with:
+          image-name: hasioscherm
+          pi-gen-version: arm64
+          release: trixie
+          stage-list: stage0 stage1 stage2 ./image/stage-hasioscherm
+          hostname: hasioscherm
+          username: beheer
+          password: ${{ steps.pw.outputs.pw }}
+          enable-ssh: 0
+          locale: nl_NL.UTF-8
+          keyboard-keymap: us
+          keyboard-layout: English (US)
+          wpa-country: NL
+          compression: xz
+          increase-runner-disk-size: false
+
+      - name: Image als artifact bewaren
+        if: steps.versie.outputs.bestaat == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasioscherm-image
+          path: ${{ steps.build.outputs.image-path }}
+          retention-days: 14
+
+      - name: Release met image maken (maakt ook de tag aan)
+        if: steps.versie.outputs.bestaat == '0'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.versie.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: hasioscherm ${{ steps.versie.outputs.tag }}
+          files: ${{ steps.build.outputs.image-path }}
+          generate_release_notes: true

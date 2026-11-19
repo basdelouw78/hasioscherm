@@ -1,0 +1,74 @@
+# hasioscherm - configuratie per scherm
+#
+# Dit bestand staat op de boot-partitie: /boot/firmware/hasioscherm.yaml
+# Je kunt het vóór de eerste start op je pc aanpassen (de boot-partitie is
+# FAT32 en dus op Windows/Mac leesbaar). In fase 2 vult de setup-wizard op
+# het scherm dit bestand voor je in.
+
+scherm:
+  # Naam van het apparaat in Home Assistant.
+  naam: "Scherm woonkamer"
+  # Optioneel: vaste id (alleen a-z, 0-9, _). Leeg = afgeleid van de naam.
+  id: ""
+  # Rotatie van beeld + touch: 0, 90, 180 of 270. Touch Display 2 is
+  # van zichzelf staand; 90 of 270 = liggend.
+  rotatie: 90
+
+homeassistant:
+  # Lokaal adres van Home Assistant, bijv. "http://192.168.1.10:8123".
+  # Leeg = de setup-wizard vraagt erom bij de eerste start.
+  url: ""
+
+dashboard:
+  # Pagina die het scherm toont:
+  #  - "standaard": het meegeleverde dashboard (haalt zelf weer, personen en
+  #    ruimtes met lampen/schakelaars/klimaat/media uit Home Assistant);
+  #  - of een eigen dashboard: een volledige URL of een pad dat achter
+  #    homeassistant.url wordt geplakt (bijv. "/local/mijn/dash.html"). Op Home
+  #    Assistant zelf wordt automatisch ?kiosk=1&kt=<token> toegevoegd.
+  url: "standaard"
+  # Browser: "cog" (WPE WebKit, licht) of "chromium" (terugvaloptie).
+  browser: "cog"
+
+mqtt:
+  host: ""                # meestal hetzelfde adres als Home Assistant
+  port: 1883
+  gebruiker: ""
+  wachtwoord: ""
+  # Prefix voor MQTT Discovery (standaard in HA: homeassistant)
+  discovery_prefix: "homeassistant"
+
+gedrag:
+  # Minuten zonder aanraking voordat het scherm uitgaat. 0 = nooit.
+  timeout_minuten: 5
+  # Eerste tik op een donker scherm wekt alleen (true) of klikt ook door (false).
+  eerste_tik_alleen_wekken: true
+  # Helderheid in procenten, overdag en 's nachts.
+  helderheid_dag: 80
+  helderheid_nacht: 20
+  dag_begint: "07:00"
+  nacht_begint: "22:00"
+  # Vaste tijden waarin het scherm uit hoort te zijn. Een tik wekt het
+  # tijdelijk; na de timeout gaat het weer uit. Leeg laten = geen.
+  uit_tijden:
+    - van: "23:30"
+      tot: "06:30"
+  # Na hoeveel seconden een pop-up/pagina van HA terugkeert naar het dashboard.
+  popup_terug_seconden: 60
+  # Temperatuur (°C) waarboven 'Te warm' aangaat.
+  te_warm_graden: 75
+
+updates:
+  # "knop" = update-entiteit in HA, jij drukt op installeren.
+  # "automatisch" = 's nachts zelf installeren.
+  modus: "knop"
+  repo: "basdelouw78/hasioscherm"
+  # Alleen nodig als de repo privé is: een fine-grained token met alleen
+  # "Contents: read" op deze repo. Komt nooit in het log of in MQTT.
+  token: ""
+
+systeem:
+  # Beveiligde modus: het systeem is alleen-lezen (wijzigingen staan alleen in het
+  # geheugen), zodat stroomuitval of een PoE-herstart de SSD niet kan beschadigen.
+  # Wordt na de setup automatisch aangezet (1 herstart). Updates zetten hem tijdelijk uit.
+  alleen_lezen: true

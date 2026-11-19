@@ -73,6 +73,7 @@ jobs:
           username: beheer
           password: ${{ steps.pw.outputs.pw }}
           enable-ssh: 0
+          disable-first-boot-user-rename: 1
           locale: nl_NL.UTF-8
           keyboard-keymap: us
           keyboard-layout: English (US)

@@ -73,6 +73,8 @@ fi
 log "Services installeren"
 install -m 644 "$DEST/systemd/hasioscherm-agent.service" /etc/systemd/system/
 install -m 644 "$DEST/systemd/hasioscherm-kiosk.service" /etc/systemd/system/
+install -m 644 "$DEST/systemd/hasioscherm-diagnose.service" "$DEST/systemd/hasioscherm-diagnose.timer" /etc/systemd/system/
+systemctl enable hasioscherm-diagnose.timer || true
 mkdir -p /etc/systemd/system.conf.d
 install -m 644 "$DEST/systemd/watchdog.conf" /etc/systemd/system.conf.d/hasioscherm-watchdog.conf
 

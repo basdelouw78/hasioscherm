@@ -7,7 +7,7 @@ BOOT=/boot/firmware
 [ -d "$BOOT" ] || BOOT=/boot
 OUT="$BOOT/hasioscherm-diagnose.txt"
 
-if [ -f "$OUT" ] && [ $(( $(date +%s) - $(stat -c %Y "$OUT") )) -lt 60 ]; then
+if [ -z "${HASIOSCHERM_DIAGNOSE_ALTIJD:-}" ] && [ -f "$OUT" ] && [ $(( $(date +%s) - $(stat -c %Y "$OUT") )) -lt 60 ]; then
   exit 0
 fi
 
@@ -15,6 +15,8 @@ fi
   echo "hasioscherm diagnose - $(date '+%Y-%m-%d %H:%M:%S')"
   echo "versie: $(grep -o '[0-9][0-9.]*' /opt/hasioscherm/agent/hasioscherm/__init__.py 2>/dev/null | head -n1)"
   echo "kernel: $(uname -r)"
+  echo "aanleiding: ${HASIOSCHERM_DIAGNOSE_ALTIJD:+90 s na opstarten}${SERVICE_RESULT:+kiosk gestopt}"
+  echo "kiosk-status: $(systemctl is-active hasioscherm-kiosk.service)"
   echo "kiosk-resultaat: ${SERVICE_RESULT:-?} / ${EXIT_CODE:-?} / ${EXIT_STATUS:-?}"
   echo
   echo "== /dev/dri =="
@@ -36,8 +38,14 @@ fi
   echo "== invoerapparaten =="
   grep -E '^N: Name=' /proc/bus/input/devices 2>&1
   echo
+  echo "== i2c-apparaten =="
+  for d in /sys/bus/i2c/devices/*; do [ -e "$d/name" ] && echo "$(basename "$d"): $(cat "$d/name")"; done 2>&1
+  echo
+  echo "== config.txt (zonder commentaar) =="
+  grep -vE '^\s*(#|$)' "$BOOT/config.txt" 2>&1
+  echo
   echo "== display (dmesg) =="
-  dmesg 2>/dev/null | grep -iE 'dsi|panel|ili|goodix|ft5|touch|backlight|drm' | tail -n 25
+  dmesg 2>/dev/null | grep -iE 'dsi|panel|ili|goodix|ft5|touch|backlight|drm' | tail -n 40
   echo
   echo "== kiosk (laatste 120 regels) =="
   journalctl -u hasioscherm-kiosk.service -b --no-pager -n 120 2>&1

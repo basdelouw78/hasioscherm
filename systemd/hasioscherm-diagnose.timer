@@ -1,0 +1,8 @@
+[Unit]
+Description=hasioscherm diagnoseverslag 90 s na het opstarten
+
+[Timer]
+OnBootSec=90s
+
+[Install]
+WantedBy=timers.target

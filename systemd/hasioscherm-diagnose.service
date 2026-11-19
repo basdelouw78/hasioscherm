@@ -1,0 +1,7 @@
+[Unit]
+Description=hasioscherm diagnoseverslag naar de boot-partitie
+
+[Service]
+Type=oneshot
+Environment=HASIOSCHERM_DIAGNOSE_ALTIJD=1
+ExecStart=/opt/hasioscherm/kiosk/diagnose.sh

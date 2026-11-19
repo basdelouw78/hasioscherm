@@ -26,6 +26,19 @@ fi
   echo "== pakketten =="
   dpkg-query -W -f='${Package} ${Version}\n' cage cog libwpewebkit-2.0-1 'libwlroots*' 2>&1
   echo
+  echo "== capabilities op programma's =="
+  getcap /usr/bin/cage /usr/bin/bwrap /usr/bin/cog 2>&1
+  ls -l /usr/bin/bwrap 2>&1
+  echo
+  echo "== backlight =="
+  ls -l /sys/class/backlight 2>&1
+  echo
+  echo "== invoerapparaten =="
+  grep -E '^N: Name=' /proc/bus/input/devices 2>&1
+  echo
+  echo "== display (dmesg) =="
+  dmesg 2>/dev/null | grep -iE 'dsi|panel|ili|goodix|ft5|touch|backlight|drm' | tail -n 25
+  echo
   echo "== kiosk (laatste 120 regels) =="
   journalctl -u hasioscherm-kiosk.service -b --no-pager -n 120 2>&1
   echo

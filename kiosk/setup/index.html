@@ -73,6 +73,7 @@
   ol.plan li { padding: 10px 0; border-bottom: 1px solid var(--rand); }
   ol.plan li.gedaan { color: #86efac; }
   /* toetsenbord */
+  .tbtoon { margin-left: 1em; font-size: .8em; padding: .2em .8em; }
   #tb { position: fixed; left: 0; right: 0; bottom: 0; background: #1b2029; border-top: 1px solid var(--rand);
     padding: 12px 16px 16px; display: none; z-index: 10; box-shadow: 0 -10px 40px #0008; }
   #tb.open { display: block; }
@@ -147,7 +148,7 @@ const STAPPEN = [
 let stap = 0;
 
 /* ---------------- toetsenbord ---------------- */
-const TB = { veld: null, modus: "abc", shift: false };
+const TB = { veld: null, modus: "abc", shift: false, toon: false };
 const LAYOUT = {
   abc: ["1234567890", "qwertyuiop", "asdfghjkl", "⇧zxcvbnm⌫", "#.@-_:/␣✓"],
   sym: ["1234567890", "!?&%+=*()", "#$€;,'\"<>", "abc[]{}~^⌫", "abc.@-_:/␣✓"],
@@ -174,7 +175,7 @@ function tbTeken() {
 function tbOpen(veld) {
   if (TB.veld) TB.veld.classList.remove("actief");
   TB.veld = veld; veld.classList.add("actief");
-  TB.modus = veld.dataset.tb || "abc"; TB.shift = false;
+  TB.modus = veld.dataset.tb || "abc"; TB.shift = false; TB.toon = false;
   $("#tb").classList.add("open"); document.body.classList.add("tb-open");
   tbTeken(); tbVoorbeeld();
   setTimeout(() => veld.scrollIntoView({block: "center", behavior: "smooth"}), 50);
@@ -185,13 +186,20 @@ function tbSluit() {
 }
 function tbVoorbeeld() {
   if (!TB.veld) return;
-  $("#tbvoorbeeld").textContent = TB.veld.type === "password" ? "•".repeat(TB.veld.value.length) : TB.veld.value;
+  const geheim = TB.veld.type === "password";
+  $("#tbvoorbeeld").textContent = geheim && !TB.toon ? "•".repeat(TB.veld.value.length) : TB.veld.value;
+  if (geheim) $("#tbvoorbeeld").insertAdjacentHTML("beforeend",
+    `<button class="tbtoon" data-k="toon">${TB.toon ? "verberg" : "toon"}</button>`);
 }
+$("#tbvoorbeeld").addEventListener("click", e => {
+  if (e.target.closest(".tbtoon")) { TB.toon = !TB.toon; tbVoorbeeld(); e.stopPropagation(); }
+});
 $("#tb").addEventListener("pointerdown", e => e.preventDefault());
 $("#tb").addEventListener("click", e => {
   const k = e.target.closest("button")?.dataset.k; if (!k || !TB.veld) return;
   const v = TB.veld;
   if (k === "ok") return tbSluit();
+  if (k === "toon") { TB.toon = !TB.toon; tbVoorbeeld(); return; }
   if (k === "bs") v.value = v.value.slice(0, -1);
   else if (k === "shift") { TB.shift = !TB.shift; tbTeken(); return; }
   else if (k === "sym") { TB.modus = "sym"; tbTeken(); return; }

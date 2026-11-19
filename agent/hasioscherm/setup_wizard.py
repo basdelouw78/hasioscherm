@@ -507,13 +507,34 @@ def wifi_verbind(ssid: str, wachtwoord: str) -> tuple[bool, str]:
     rc, out = _nmcli(args, timeout=45)
     if rc == 0:
         return True, "Verbonden"
+    if wachtwoord and _is_wachtwoordfout(out):
+        # De wifi-chip van de Pi heeft soms moeite met WPA2/WPA3-mengmodus.
+        # Probeer een vast WPA2-profiel (zonder verplichte PMF).
+        log.info("Wifi: tweede poging met vast WPA2-profiel voor '%s'", ssid)
+        _nmcli(["connection", "delete", "id", ssid])
+        rc2, out2 = _nmcli(["connection", "add", "type", "wifi", "con-name", ssid, "ssid", ssid,
+                            "wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.psk", wachtwoord,
+                            "wifi-sec.pmf", "disable"])
+        if rc2 == 0:
+            rc3, out3 = _nmcli(["connection", "up", "id", ssid], timeout=45)
+            if rc3 == 0:
+                return True, "Verbonden"
+            _nmcli(["connection", "delete", "id", ssid])
+            out = out3 or out
     return False, wifi_fout_uitleg(out)
+
+
+def _is_wachtwoordfout(out: str) -> bool:
+    o = out.lower()
+    return any(t in o for t in ("secrets were required", "passwords or encryption keys",
+                                "802-11-wireless-security.psk", "property is invalid"))
 
 
 def wifi_fout_uitleg(out: str) -> str:
     o = out.lower()
-    if "secrets were required" in o or "802-11-wireless-security.psk" in o or "property is invalid" in o:
-        uitleg = "Wachtwoord onjuist (of te kort)."
+    if _is_wachtwoordfout(out):
+        uitleg = ("Wachtwoord niet geaccepteerd. Controleer hoofdletters; minimaal 8 tekens. "
+                  "Gebruikt het netwerk alleen WPA3 of een bedrijfslogin (802.1X), dan werkt het niet.")
     elif "no network with ssid" in o:
         uitleg = "Netwerk niet gevonden. Staat het scherm binnen bereik?"
     elif "no wi-fi device" in o or "not available" in o or "radio" in o:

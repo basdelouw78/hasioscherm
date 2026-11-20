@@ -65,6 +65,7 @@ class App:
         self.offline_shown = False
         self.ha_ok = True
         self.latest_version: str | None = None
+        self.volgende_updatecontrole = 0.0
         self._last_period: str | None = None
         self._last_in_window: bool | None = None
         self.ro_status = ""
@@ -158,6 +159,8 @@ class App:
         client.publish(f"{self.base}/status", "online", retain=True)
         self.publish_state()
         self.publish_stats()
+        # Na (her)verbinden de update-entiteit snel bijwerken.
+        self.volgende_updatecontrole = min(self.volgende_updatecontrole, time.time() + 5)
 
     def _on_message(self, client, userdata, msg):
         payload = msg.payload.decode("utf-8", errors="ignore").strip()
@@ -235,6 +238,8 @@ class App:
             subprocess.Popen(["systemctl", "poweroff"])
         elif name == "update":
             self.install_update()
+        elif name == "update_controleren":
+            self.volgende_updatecontrole = 0.0
         elif name == "beveiligde_modus":
             self.zet_beveiligde_modus(payload == "ON")
         self.publish_state()
@@ -328,6 +333,7 @@ class App:
             ("herladen", "Pagina herladen", "mdi:refresh", None),
             ("screenshot", "Screenshot maken", "mdi:camera", None),
             ("setup", "Setup openen", "mdi:cog", "config"),
+            ("update_controleren", "Updates controleren", "mdi:update", "config"),
             ("browser_herstarten", "Browser herstarten", "mdi:restart", "config"),
             ("herstarten", "Herstarten", "mdi:restart-alert", "config"),
             ("uitschakelen", "Uitschakelen", "mdi:power", "config"),
@@ -633,7 +639,9 @@ class App:
             log.warning("Nog geen MQTT-server ingesteld; eerst de setup doorlopen")
 
         next_stats = next_wd = 0.0
-        next_update = time.time() + 120
+        # Eerste controle kort na het opstarten (netwerk krijgt even de tijd).
+        self.volgende_updatecontrole = time.time() + 45
+        laatste_auto_nacht = ""
         last_in_gebruik = None
         while True:
             now = time.time()
@@ -649,10 +657,16 @@ class App:
                 if now >= next_wd:
                     next_wd = now + WATCHDOG_INTERVAL
                     self.watchdog()
-                if now >= next_update:
-                    next_update = now + UPDATE_INTERVAL
+                if now >= self.volgende_updatecontrole:
                     self.check_update()
-                    if self.cfg.update_modus == "automatisch" and 2 <= datetime.now().hour < 5:
+                    # Mislukt? Na 10 minuten opnieuw, anders over 6 uur.
+                    self.volgende_updatecontrole = now + (UPDATE_INTERVAL if self.update_status == "ok" else 600)
+                # Automatische updates: elke nacht één keer tussen 03:00 en 05:00.
+                if self.cfg.update_modus == "automatisch":
+                    nu = datetime.now()
+                    if 3 <= nu.hour < 5 and laatste_auto_nacht != nu.date().isoformat():
+                        laatste_auto_nacht = nu.date().isoformat()
+                        self.check_update()
                         self.install_update()
                 _notify_watchdog()
             except Exception:  # noqa: BLE001

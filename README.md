@@ -132,7 +132,7 @@ Het apparaat verschijnt vanzelf via MQTT Discovery.
 | Soort | Entiteiten |
 |---|---|
 | Bediening | Backlight (aan/uit + helderheid), Pagina (tekst/URL), Wekken, Terug naar dashboard, Pagina herladen, Screenshot maken |
-| Instellingen | Timeout, Helderheid dag, Helderheid nacht, Dag/nacht-helderheid, Eerste tik alleen wekken, Beveiligde modus, Setup openen, Browser herstarten, Herstarten, Uitschakelen |
+| Instellingen | Timeout, Helderheid dag, Helderheid nacht, Dag/nacht-helderheid, Eerste tik alleen wekken, Beveiligde modus, Setup openen, Updates controleren, Browser herstarten, Herstarten, Uitschakelen |
 | Status | Laatste aanraking, In gebruik |
 | Diagnose | Bestandssysteem, Updatecontrole, CPU-temperatuur, CPU-belasting, Geheugen, Schijf, Opgestart, IP-adres, Stroom/throttling, Ventilator, Te warm, Home Assistant bereikbaar |
 | Overig | Screenshot (afbeelding), Software (update) |
@@ -211,7 +211,10 @@ instellingen en het wijzigingslog.
 
 ## Updates
 
-De entiteit **Software** toont of er een nieuwere release is. Druk je op
+Het scherm controleert bij GitHub op een nieuwere release: kort na het
+opstarten, na elke (her)verbinding met MQTT en daarna elke 6 uur (mislukt het,
+dan na 10 minuten opnieuw). Met de knop **Updates controleren** gebeurt het
+meteen. De entiteit **Software** toont of er een nieuwere release is. Druk je op
 *Installeren*, dan haalt het scherm die tag op uit deze repo en installeert
 die. In beveiligde modus gaat dat in stappen, die elk een spoor achterlaten in
 het wijzigingslog:
@@ -221,7 +224,7 @@ het wijzigingslog:
 3. de beveiliging gaat weer aan, gevolgd door nog een herstart. Dat gebeurt ook
    als de update mislukt; dan blijft de oude versie staan.
 
-Met `updates.modus: automatisch` gebeurt dit 's nachts tussen 02:00 en 05:00.
+Met `updates.modus: automatisch` gebeurt dit elke nacht één keer tussen 03:00 en 05:00.
 
 **Privé-repo?** Vul dan in de setup een GitHub-token in: een fine-grained token
 met alleen *Contents: read* op de repo. De updatecontrole en `update.sh`

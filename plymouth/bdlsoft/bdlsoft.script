@@ -11,7 +11,12 @@ PW = Window.GetWidth();
 PH = Window.GetHeight();
 
 # Is het paneel al liggend (de kernel draait zelf), dan niets draaien.
+# Let op: de draairichting van het opstartscherm is precies andersom dan die
+# van de browser (cage): rotatie 90 in de setup is hier 270 en omgekeerd
+# (op het echte scherm vastgesteld).
 if (PW > PH && (rotatie == 90 || rotatie == 270)) rot = 0;
+else if (rotatie == 90) rot = 270;
+else if (rotatie == 270) rot = 90;
 else rot = rotatie;
 
 if (rot == 90 || rot == 270) { LW = PH; LH = PW; }

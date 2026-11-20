@@ -41,7 +41,11 @@ if [ -f "$THEMA" ] && ! grep -q "^rotatie = $ROTATIE;" "$THEMA"; then
 fi
 [ "$ALLEEN_THEMA" -eq 1 ] && exit 0
 TOUCH="$(lees touch_draaiing auto)"
-[ "$TOUCH" = "auto" ] && TOUCH="$ROTATIE"
+# "auto": de touch draait precies andersom dan de rotatie-waarde van cage
+# (op het echte Touch Display 2 vastgesteld: rotatie 90 vraagt touch 270).
+if [ "$TOUCH" = "auto" ]; then
+  case "$ROTATIE" in 90) TOUCH=270 ;; 270) TOUCH=90 ;; *) TOUCH="$ROTATIE" ;; esac
+fi
 
 # libinput: matrix draait de genormaliseerde touch-coördinaten.
 case "$TOUCH" in

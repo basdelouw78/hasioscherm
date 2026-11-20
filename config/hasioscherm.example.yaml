@@ -13,8 +13,9 @@ scherm:
   # Rotatie van beeld + touch: 0, 90, 180 of 270. Touch Display 2 is
   # van zichzelf staand; 90 of 270 = liggend.
   rotatie: 90
-  # Touch-kalibratie: "auto" volgt de rotatie hierboven. Klopt de plek waar
-  # je tikt niet met het beeld? Probeer dan 90, 270, 180 of 0 (bewerkbaar
+  # Touch-kalibratie: "auto" past bij de rotatie hierboven (rotatie 90 geeft
+  # touch 270). Klopt de plek waar je tikt niet met het beeld? Probeer dan 90,
+  # 270, 180 of 0 (bewerkbaar
   # op een pc: dit bestand staat op de boot-partitie).
   touch_draaiing: "auto"
   # Taal van setup, opstartscherm en standaard dashboard: nl, en of de.

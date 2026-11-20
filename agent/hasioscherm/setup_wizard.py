@@ -232,6 +232,11 @@ class SetupWizard:
                 bestaat = self._admin_client().zoek_gebruiker(username)
             except HAFout:
                 pass
+            if bestaat and not bestaat.get("is_active", True):
+                stappen.append({"actie": "activeren", "user_id": bestaat["id"],
+                                "tekst": t(f"Home Assistant: uitgeschakelde gebruiker '{username}' weer activeren",
+                                           f"Home Assistant: re-activate disabled user '{username}'",
+                                           f"Home Assistant: deaktivierten Benutzer '{username}' wieder aktivieren")})
             if bestaat:
                 stappen.append({"actie": "wachtwoord", "user_id": bestaat["id"], "username": username,
                                 "tekst": t(f"Home Assistant: bestaande gebruiker '{username}' krijgt een nieuw wachtwoord",
@@ -319,9 +324,26 @@ class SetupWizard:
                 else:
                     admin.zet_wachtwoord(stap["user_id"], wachtwoord)
                 mqtt_user, mqtt_pw = stap["username"], wachtwoord
+            elif a == "activeren":
+                self._admin_client().activeer_gebruiker(stap["user_id"])
             elif a == "token":
                 scherm = HAClient(url, login(url, mqtt_user, mqtt_pw))
-                ha_token = scherm.long_lived_token(f"hasioscherm {inst['naam']} {datetime.now():%Y-%m-%d %H:%M}")
+                # Oude tokens van dit scherm opruimen (bijv. van een eerdere setup);
+                # HA weigert ook een tweede token met precies dezelfde naam.
+                try:
+                    for tok in scherm.refresh_tokens():
+                        if (tok.get("type") == "long_lived_access_token"
+                                and str(tok.get("client_name", "")).startswith("hasioscherm ")):
+                            scherm.verwijder_refresh_token(tok["id"])
+                            schrijf_wijziging(f"HA: oude token '{tok.get('client_name')}' van {mqtt_user} verwijderd")
+                except HAFout as e:
+                    log.warning("Oude tokens opruimen mislukt: %s", e)
+                naam_token = f"hasioscherm {inst['naam']} {datetime.now():%Y-%m-%d %H:%M:%S}"
+                try:
+                    ha_token = scherm.long_lived_token(naam_token)
+                except HAFout as e:
+                    raise HAFout(f"Token aanmaken mislukt ({e}). Is de gebruiker {mqtt_user} actief in "
+                                 "Home Assistant (Instellingen → Personen → Gebruikers)?") from e
             elif a == "blueprint":
                 tekst = (REPO_DIR / "blueprints" / stap["bestand"]).read_text(encoding="utf-8")
                 self._admin_client().bewaar_blueprint(f"hasioscherm/{stap['bestand']}", tekst)

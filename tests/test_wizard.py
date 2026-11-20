@@ -75,6 +75,10 @@ def fake_ws(self, commands):
         elif t == "config/auth/list": out.append([])
         elif t == "config/auth/create": out.append({"user": {"id": "u1"}})
         elif t == "auth/long_lived_access_token": out.append("LLAT-scherm")
+        elif t == "auth/refresh_tokens": out.append([
+            {"id": "oud1", "type": "long_lived_access_token", "client_name": "hasioscherm Scherm woonkamer 2026-11-19 10:00"},
+            {"id": "ander", "type": "long_lived_access_token", "client_name": "Mijn telefoon"},
+            {"id": "huidig", "type": "normal", "client_name": None}])
         else: out.append(None)
     return out
 ha_client.HAClient.ws = fake_ws
@@ -198,6 +202,8 @@ with sync_playwright() as pw:
 # ---------------- resultaat controleren ----------------
 ws_types = [c[2] for c in calls if c[0] == "ws"]
 check("config/auth/create" in ws_types and "config/auth_provider/homeassistant/create" in ws_types, "HA-gebruiker aangemaakt")
+check([c[3]["refresh_token_id"] for c in calls if c[0] == "ws" and c[2] == "auth/delete_refresh_token"] == ["oud1"],
+      "alleen oude hasioscherm-token van het scherm opgeruimd")
 check(any(c[0] == "ws" and c[2] == "auth/long_lived_access_token" and c[1] == "tok-scherm" for c in calls),
       "token aangemaakt als scherm-gebruiker (niet als admin)")
 check(ws_types.count("blueprint/save") == 2, "2 blueprints opgeslagen")

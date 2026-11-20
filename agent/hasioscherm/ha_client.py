@@ -195,6 +195,15 @@ class HAClient:
         self.ws([{"type": "config/auth_provider/homeassistant/admin_change_password",
                   "user_id": user_id, "password": password}])
 
+    def refresh_tokens(self) -> list[dict]:
+        return self.ws([{"type": "auth/refresh_tokens"}])[0]
+
+    def verwijder_refresh_token(self, token_id: str) -> None:
+        self.ws([{"type": "auth/delete_refresh_token", "refresh_token_id": token_id}])
+
+    def activeer_gebruiker(self, user_id: str) -> None:
+        self.ws([{"type": "config/auth/update", "user_id": user_id, "is_active": True}])
+
     def long_lived_token(self, naam: str) -> str:
         return self.ws([{"type": "auth/long_lived_access_token",
                          "client_name": naam, "lifespan": 3650}])[0]

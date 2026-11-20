@@ -83,6 +83,7 @@ def ha_restanten(device_id: str) -> str:
 
 def start(device_id: str, bron: str) -> str:
     """Begin de reset. Geeft 'herstart' of 'mislukt' terug."""
+    alleen_lezen.boot_schrijfbaar()
     schrijf_wijziging(f"Fabrieksreset gestart ({bron}). Blijft bestaan in Home Assistant: {ha_restanten(device_id)}")
     if alleen_lezen.actief():
         _schrijf({"stap": "uitschakelen", "pogingen": 0})

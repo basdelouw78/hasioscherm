@@ -65,6 +65,13 @@ fi
 chmod +x "$DEST/install.sh" "$DEST/update.sh" "$DEST/kiosk/start-browser.sh" "$DEST/kiosk/diagnose.sh" "$DEST/kiosk/touch-kalibratie.sh"
 
 log "Configuratie"
+# De boot-partitie moet schrijfbaar blijven (config, toestand, wijzigingslog,
+# markeerbestanden). Oudere versies lieten raspi-config hem alleen-lezen maken.
+if [ -f /etc/fstab ] && grep -qE '/boot/firmware.*defaults,ro' /etc/fstab; then
+  log "Boot-partitie weer schrijfbaar in /etc/fstab"
+  sed -i -E 's#(.*/boot/firmware.*)defaults,ro(.*)#\1defaults\2#' /etc/fstab
+fi
+
 if [ -d "$BOOT" ] && [ ! -f "$BOOT/hasioscherm.yaml" ]; then
   cp "$DEST/config/hasioscherm.example.yaml" "$BOOT/hasioscherm.yaml"
   log "Voorbeeldconfig gezet in $BOOT/hasioscherm.yaml - pas die aan!"

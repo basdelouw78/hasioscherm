@@ -55,8 +55,43 @@ def _raspi_config(*args: str) -> bool:
 
 
 def zet_aan() -> bool:
-    """Overlay aanzetten (actief na herstart)."""
-    return _raspi_config("do_overlayfs", "0")
+    """Overlay aanzetten (actief na herstart).
+
+    Let op: 'raspi-config nonint do_overlayfs 0' maakt ook de boot-partitie
+    alleen-lezen. Daar staan config, toestand, wijzigingslog en de
+    markeerbestanden voor updates en fabrieksreset; die moet dus schrijfbaar
+    blijven. Daarom direct daarna disable_bootro."""
+    if not _raspi_config("do_overlayfs", "0"):
+        return False
+    if not _raspi_config("disable_bootro"):
+        log.warning("Boot-partitie kon niet schrijfbaar blijven; wordt bij elke start opnieuw schrijfbaar gemaakt")
+    return True
+
+
+BOOT_MOUNT = os.environ.get("HASIOSCHERM_BOOT_MOUNT", "/boot/firmware")
+MOUNTS = "/proc/mounts"
+
+
+def boot_schrijfbaar() -> bool:
+    """Zorg dat de boot-partitie schrijfbaar is (ook als hij alleen-lezen is
+    aangekoppeld, bijv. door een oudere versie of raspi-config)."""
+    try:
+        with open(MOUNTS) as f:
+            for regel in f:
+                d = regel.split()
+                if len(d) > 3 and d[1] == BOOT_MOUNT:
+                    if "ro" not in d[3].split(","):
+                        return True
+                    r = subprocess.run(["mount", "-o", "remount,rw", BOOT_MOUNT], capture_output=True, text=True, timeout=30)
+                    if r.returncode == 0:
+                        log.warning("Boot-partitie was alleen-lezen; weer schrijfbaar gemaakt")
+                        return True
+                    log.error("Boot-partitie schrijfbaar maken mislukt: %s", r.stderr.strip())
+                    return False
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log.error("Boot-partitie controleren mislukt: %s", e)
+        return False
+    return True
 
 
 def zet_uit() -> bool:
@@ -93,6 +128,7 @@ def wis_marker() -> None:
 
 def start_update(tag: str) -> str:
     """Begin een update. Geeft terug wat er gebeurt: 'direct' of 'herstart'."""
+    boot_schrijfbaar()
     if not actief():
         subprocess.Popen(["systemd-run", "--unit=hasioscherm-update", "--collect",
                           "/opt/hasioscherm/update.sh", tag])

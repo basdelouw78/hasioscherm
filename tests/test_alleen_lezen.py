@@ -17,6 +17,7 @@ from hasioscherm import alleen_lezen as al  # noqa: E402
 acties = []
 toestand = {"overlay": True}
 al.actief = lambda: toestand["overlay"]
+_echte_zet_aan = al.zet_aan
 al.zet_aan = lambda: (acties.append("aan"), True)[1]
 al.zet_uit = lambda: (acties.append("uit"), True)[1]
 al.herstart = lambda: acties.append("herstart")
@@ -68,5 +69,22 @@ check(al.bij_opstart(False, True) is None and acties == [], "uitgezet in instell
 
 log = (tmp / "wijzigingen.log").read_text()
 check("beveiligde modus tijdelijk uit" in log and "weer aan" in log, "alles in het wijzigingslog")
+# boot-partitie moet schrijfbaar blijven
+import subprocess as _sp, tempfile as _tf
+_m = _tf.NamedTemporaryFile("w", delete=False)
+_m.write("/dev/sda1 /boot/firmware vfat ro,relatime 0 0\n"); _m.close()
+al.MOUNTS = _m.name
+_calls = []
+_orig_run = al.subprocess.run
+al.subprocess.run = lambda args, **k: (_calls.append(args), _sp.CompletedProcess(args, 0, "", ""))[1]
+check(al.boot_schrijfbaar() and _calls and _calls[-1][:3] == ["mount", "-o", "remount,rw"], "alleen-lezen boot wordt weer schrijfbaar")
+_rc = []
+_orig_rc = al._raspi_config
+al._raspi_config = lambda *a: _rc.append(a) or True
+_echte_zet_aan()
+check(_rc == [("do_overlayfs", "0"), ("disable_bootro",)], "beveiligde modus aan laat boot-partitie schrijfbaar")
+al._raspi_config = _orig_rc
+al.subprocess.run = _orig_run
+
 print("Resultaat:", "ALLES OK" if not fails else fails)
 sys.exit(1 if fails else 0)

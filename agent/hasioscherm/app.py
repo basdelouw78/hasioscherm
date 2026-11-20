@@ -672,6 +672,7 @@ class App:
 
     def run(self) -> None:
         log.info("hasioscherm %s start als '%s' (config: %s)", __version__, self.cfg.naam, self.cfg.pad)
+        alleen_lezen.boot_schrijfbaar()
         self.kiosk.current_url = self.cfg.full_dashboard_url
         self.backlight.set_percent(self.target_brightness())
         self.backlight.set_on(True)

@@ -17,6 +17,12 @@ WLOG="${HASIOSCHERM_CHANGELOG:-/boot/firmware/hasioscherm-wijzigingen.log}"
 exec >>"$LOG" 2>&1
 echo "=== $(date -Is) update naar $TAG ==="
 
+# De boot-partitie moet schrijfbaar zijn (markeerbestand, wijzigingslog);
+# oudere installaties zetten hem in beveiligde modus op alleen-lezen.
+if awk '$2=="/boot/firmware" && $4 ~ /(^|,)ro(,|$)/ {f=1} END {exit !f}' /proc/mounts; then
+  mount -o remount,rw /boot/firmware && echo "boot-partitie weer schrijfbaar gemaakt"
+fi
+
 markeer() {   # markeer klaar|mislukt
   if [ -f "$MARKER" ]; then
     python3 - "$MARKER" "$1" <<'EOF'

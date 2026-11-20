@@ -14,7 +14,9 @@ from datetime import datetime, timezone
 
 import paho.mqtt.client as mqtt
 
-from . import __version__, alleen_lezen, localweb, system
+import re
+
+from . import __version__, alleen_lezen, fabrieksreset, localweb, system
 from .backlight import Backlight
 from .config import Config, State, load_config, mask_url
 from .kiosk import LOCAL, Kiosk, offline_url
@@ -66,6 +68,7 @@ class App:
         self.ha_ok = True
         self.latest_version: str | None = None
         self.volgende_updatecontrole = 0.0
+        self.reset_bevestig_tot = 0.0
         self._last_period: str | None = None
         self._last_in_window: bool | None = None
         self.ro_status = ""
@@ -237,7 +240,13 @@ class App:
             self.client.publish(f"{self.base}/status", "offline", retain=True)
             subprocess.Popen(["systemctl", "poweroff"])
         elif name == "update":
-            self.install_update()
+            versie = payload.strip()
+            if re.fullmatch(r"v?\d+\.\d+\.\d+", versie):
+                self.install_versie(versie.lstrip("v"))
+            else:
+                self.install_update()
+        elif name == "fabrieksreset":
+            self.fabrieksreset_knop()
         elif name == "update_controleren":
             self.volgende_updatecontrole = 0.0
         elif name == "beveiligde_modus":
@@ -334,6 +343,7 @@ class App:
             ("screenshot", "Screenshot maken", "mdi:camera", None),
             ("setup", "Setup openen", "mdi:cog", "config"),
             ("update_controleren", "Updates controleren", "mdi:update", "config"),
+            ("fabrieksreset", "Fabrieksreset (2x drukken)", "mdi:restore-alert", "config"),
             ("browser_herstarten", "Browser herstarten", "mdi:restart", "config"),
             ("herstarten", "Herstarten", "mdi:restart-alert", "config"),
             ("uitschakelen", "Uitschakelen", "mdi:power", "config"),
@@ -493,6 +503,56 @@ class App:
             p["release_summary"] = f"Updatecontrole: {self.update_status}"[:255]
         return p
 
+    def install_versie(self, versie: str) -> None:
+        """Installeer een bepaalde release (ook een oudere), als die bestaat."""
+        tag = "v" + versie
+        url = f"https://api.github.com/repos/{self.cfg.update_repo}/releases/tags/{tag}"
+        headers = {"Accept": "application/vnd.github+json", "User-Agent": "hasioscherm"}
+        if self.cfg.update_token:
+            headers["Authorization"] = f"Bearer {self.cfg.update_token}"
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=15):
+                pass
+        except Exception as e:  # noqa: BLE001
+            self.update_status = f"versie {versie} niet gevonden"
+            log.warning("Installeren van %s geweigerd: %s", tag, e)
+            self.publish_state()
+            return
+        if versie == __version__:
+            log.info("Versie %s is al geïnstalleerd", versie)
+            return
+        log.warning("Versie %s wordt geïnstalleerd (op verzoek)", versie)
+        self.ro_status = "update: " + alleen_lezen.start_update(tag)
+        self.publish_state()
+
+    # ------------------------------------------------------------------
+    # fabrieksreset
+    # ------------------------------------------------------------------
+    def fabrieksreset_knop(self) -> None:
+        """Knop in HA: eerste druk opent de bevestiging op het scherm, een
+        tweede druk binnen 60 s voert de reset uit."""
+        nu = time.time()
+        if nu < self.reset_bevestig_tot:
+            self.reset_bevestig_tot = 0.0
+            self.fabrieksreset_starten("knop in Home Assistant, 2x gedrukt")
+            return
+        self.reset_bevestig_tot = nu + 60
+        log.warning("Fabrieksreset gevraagd vanuit HA; nog een keer drukken binnen 60 s om te bevestigen")
+        self.set_screen(True, "fabrieksreset gevraagd")
+        self.popup_until = 0
+        self.kiosk.navigate(f"{LOCAL}/setup/index.html?reset=1")
+
+    def fabrieksreset_starten(self, bron: str) -> None:
+        log.warning("FABRIEKSRESET (%s)", bron)
+        try:
+            if self.client.is_connected():
+                self.remove_discovery()
+                self.client.publish(f"{self.base}/status", "offline", retain=True)
+                time.sleep(1)
+        except Exception:  # noqa: BLE001
+            log.exception("Apparaat uit HA halen mislukt")
+        threading.Thread(target=fabrieksreset.start, args=(self.dev_id, bron), daemon=True).start()
+
     def install_update(self) -> None:
         if not self.latest_version or self.latest_version == __version__:
             log.info("Geen update beschikbaar")
@@ -529,6 +589,11 @@ class App:
             self.ro_status = "omzetten mislukt"
 
     def beveiliging_bij_opstart(self) -> None:
+        r = fabrieksreset.bij_opstart()
+        if r in ("uitschakelen", "uitgevoerd"):
+            log.warning("Fabrieksreset bij opstart: %s", r)
+            self.ro_status = "fabrieksreset"
+            return
         if alleen_lezen.actief():
             self.state.set("ro_pogingen", 0, bron="intern")
         gewenst = self.alleen_lezen_gewenst()

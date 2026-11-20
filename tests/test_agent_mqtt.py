@@ -100,5 +100,29 @@ check(None not in up.values() and "release_summary" in up, "update-bericht zonde
 check("homeassistant/button/hasioscherm_scherm_woonkamer/update_controleren/config" in msgs
       or any(t.endswith("update_controleren/config") for t in msgs), "knop Updates controleren")
 
+# bepaalde versie installeren via payload
+gestart = []
+appmod.alleen_lezen.start_update = lambda tag: gestart.append(tag) or "direct"
+class _R:
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+appmod.urllib.request.urlopen = lambda *a, **k: _R()
+c.publish("hasioscherm/scherm_woonkamer/update/set", "0.1.0"); time.sleep(1)
+check(gestart == ["v0.1.0"], "versie 0.1.0 installeren via payload")
+c.publish("hasioscherm/scherm_woonkamer/update/set", "v0.2.0"); time.sleep(1)
+check(gestart[-1] == "v0.2.0", "versie met v-prefix")
+def _niet(*a, **k): raise appmod.urllib.error.HTTPError("u", 404, "nf", {}, None)
+appmod.urllib.request.urlopen = _niet
+c.publish("hasioscherm/scherm_woonkamer/update/set", "9.9.8"); time.sleep(1)
+check(gestart[-1] == "v0.2.0" and "niet gevonden" in a.update_status, "onbekende versie geweigerd")
+
+# fabrieksreset: pas na 2x drukken
+resets = []
+a.fabrieksreset_starten = lambda bron: resets.append(bron)
+c.publish("hasioscherm/scherm_woonkamer/fabrieksreset/set", "PRESS"); time.sleep(1)
+check(not resets and any("reset=1" in u for u in nav), "1x drukken: alleen bevestiging op het scherm")
+c.publish("hasioscherm/scherm_woonkamer/fabrieksreset/set", "PRESS"); time.sleep(1)
+check(len(resets) == 1, "2x drukken binnen 60 s: reset")
+
 print("\nResultaat:", "ALLES OK" if not fails else f"{len(fails)} fout(en)")
 sys.exit(1 if fails else 0)

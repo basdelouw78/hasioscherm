@@ -21,6 +21,17 @@
   nav .door { margin-top: auto; padding-top: 20px; color: var(--zacht); font-size: 15px; display: flex;
     align-items: center; gap: 10px; }
   nav .door img { width: 28px; height: 28px; }
+  nav .resetknop { margin-top: 14px; font-size: 16px; padding: 10px 14px; color: var(--zacht); background: transparent;
+    border: 1px solid var(--rand); }
+  #resetvenster { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none; align-items: center;
+    justify-content: center; z-index: 50; }
+  #resetvenster.open { display: flex; }
+  #resetvenster .kader { background: var(--paneel); border: 1px solid var(--fout); border-radius: 20px;
+    padding: 40px 48px; max-width: 980px; }
+  #resetvenster h2 { color: var(--fout); margin-top: 0; }
+  #resetvenster ul { color: var(--zacht); margin: 0 0 24px; }
+  #resetvenster .knoppen { display: flex; gap: 20px; justify-content: flex-end; margin-top: 28px; }
+  button.gevaar { background: var(--fout); border-color: var(--fout); color: #fff; }
   nav h1 { font-size: 26px; margin: 0 0 4px; }
   nav .versie { color: var(--zacht); font-size: 16px; margin-bottom: 32px; }
   nav ol { list-style: none; padding: 0; margin: 0; counter-reset: s; }
@@ -109,6 +120,7 @@
     <div class="versie" id="versie">setup</div>
     <ol id="stappenlijst"></ol>
     <div class="door"><img src="/merk/bdlsoft-icoon.png" alt="">© Bdlsoft</div>
+    <button class="resetknop" id="resetopen">⟲ <span id="resetlabel">Fabrieksreset</span></button>
   </nav>
   <main>
     <div id="inhoud"></div>
@@ -119,6 +131,7 @@
     </footer>
   </main>
 </div>
+<div id="resetvenster"></div>
 <div id="tb"><div class="voorbeeld" id="tbvoorbeeld"></div><div id="tbtoetsen"></div></div>
 
 <script>
@@ -253,7 +266,17 @@ const VERTALING = /*VERTALING*/{
 "Niet bereikbaar": "Not reachable",
 "Inloggen…": "Logging in…",
 "Vul de code uit je authenticator-app in.": "Enter the code from your authenticator app.",
-"Kon instellingen niet laden: {0}": "Could not load settings: {0}"
+"Kon instellingen niet laden: {0}": "Could not load settings: {0}",
+"Fabrieksreset": "Factory reset",
+"Het scherm gaat terug naar de toestand van een vers geïnstalleerd image:": "The screen returns to the state of a freshly installed image:",
+"alle instellingen worden gewist (naam, Home Assistant, MQTT, tokens, gedrag)": "all settings are erased (name, Home Assistant, MQTT, tokens, behaviour)",
+"opgeslagen wifi-netwerken worden vergeten": "saved Wi-Fi networks are forgotten",
+"het apparaat verdwijnt uit Home Assistant": "the device is removed from Home Assistant",
+"daarna herstart het scherm en begint de setup opnieuw": "then the screen restarts and the setup starts again",
+"Wat de setup in Home Assistant heeft aangemaakt (gebruiker, automatiseringen) blijft bestaan; het wijzigingslog op de boot-partitie noemt wat je zelf kunt opruimen.": "What the setup created in Home Assistant (user, automations) remains; the change log on the boot partition lists what you can clean up yourself.",
+"Annuleren": "Cancel",
+"Ja, alles wissen": "Yes, erase everything",
+"Bezig met wissen. Het scherm herstart zo en begint daarna met de setup.": "Erasing. The screen will restart shortly and then begin the setup."
 },
 "de": {
 "Fout": "Fehler",
@@ -367,7 +390,17 @@ const VERTALING = /*VERTALING*/{
 "Niet bereikbaar": "Nicht erreichbar",
 "Inloggen…": "Anmelden…",
 "Vul de code uit je authenticator-app in.": "Gib den Code aus deiner Authenticator-App ein.",
-"Kon instellingen niet laden: {0}": "Einstellungen konnten nicht geladen werden: {0}"
+"Kon instellingen niet laden: {0}": "Einstellungen konnten nicht geladen werden: {0}",
+"Fabrieksreset": "Werkseinstellungen",
+"Het scherm gaat terug naar de toestand van een vers geïnstalleerd image:": "Der Bildschirm kehrt in den Zustand eines frisch installierten Images zurück:",
+"alle instellingen worden gewist (naam, Home Assistant, MQTT, tokens, gedrag)": "alle Einstellungen werden gelöscht (Name, Home Assistant, MQTT, Tokens, Verhalten)",
+"opgeslagen wifi-netwerken worden vergeten": "gespeicherte WLAN-Netzwerke werden vergessen",
+"het apparaat verdwijnt uit Home Assistant": "das Gerät verschwindet aus Home Assistant",
+"daarna herstart het scherm en begint de setup opnieuw": "danach startet der Bildschirm neu und das Setup beginnt von vorn",
+"Wat de setup in Home Assistant heeft aangemaakt (gebruiker, automatiseringen) blijft bestaan; het wijzigingslog op de boot-partitie noemt wat je zelf kunt opruimen.": "Was das Setup in Home Assistant angelegt hat (Benutzer, Automatisierungen), bleibt bestehen; das Änderungsprotokoll auf der Boot-Partition nennt, was du selbst aufräumen kannst.",
+"Annuleren": "Abbrechen",
+"Ja, alles wissen": "Ja, alles löschen",
+"Bezig met wissen. Het scherm herstart zo en begint daarna met de setup.": "Wird gelöscht. Der Bildschirm startet gleich neu und beginnt dann mit dem Setup."
 }
 }/*EINDE*/;
 function t(nl, ...args) {
@@ -700,6 +733,7 @@ function teken() {
   inhoud.scrollTop = zelfdeStap ? top : 0;
   $("#terug").textContent = t("Terug");
   $("#sluiten").textContent = t("Sluiten");
+  $("#resetlabel").textContent = t("Fabrieksreset");
   $("#terug").style.visibility = stap === 0 || T.klaar ? "hidden" : "visible";
   $("#sluiten").style.display = T.setupKlaar && !T.klaar ? "" : "none";
   const v = $("#verder");
@@ -786,6 +820,39 @@ $("#verder").onclick = async () => {
   stap++; teken(); bijBinnenkomst(STAPPEN[stap].id);
 };
 
+/* ---------------- fabrieksreset ---------------- */
+function resetVenster(open) {
+  const v = $("#resetvenster");
+  if (!open) { v.classList.remove("open"); return; }
+  v.innerHTML = `<div class="kader">
+    <h2>${t("Fabrieksreset")}</h2>
+    <p>${t("Het scherm gaat terug naar de toestand van een vers geïnstalleerd image:")}</p>
+    <ul>
+      <li>${t("alle instellingen worden gewist (naam, Home Assistant, MQTT, tokens, gedrag)")}</li>
+      <li>${t("opgeslagen wifi-netwerken worden vergeten")}</li>
+      <li>${t("het apparaat verdwijnt uit Home Assistant")}</li>
+      <li>${t("daarna herstart het scherm en begint de setup opnieuw")}</li>
+    </ul>
+    <p class="uitleg">${t("Wat de setup in Home Assistant heeft aangemaakt (gebruiker, automatiseringen) blijft bestaan; het wijzigingslog op de boot-partitie noemt wat je zelf kunt opruimen.")}</p>
+    <div class="knoppen"><button id="resetnee">${t("Annuleren")}</button>
+      <button class="gevaar" id="resetja">${t("Ja, alles wissen")}</button></div></div>`;
+  v.classList.add("open");
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("#resetopen, #resetnee, #resetja"); if (!b) return;
+  e.stopPropagation();
+  if (b.id === "resetopen") return resetVenster(true);
+  if (b.id === "resetnee") return resetVenster(false);
+  b.disabled = true; b.textContent = t("Bezig…");
+  try {
+    await api("fabrieksreset", {bevestig: "RESET"});
+    $("#resetvenster .kader").innerHTML = `<h2>${t("Fabrieksreset")}</h2><p>${t("Bezig met wissen. Het scherm herstart zo en begint daarna met de setup.")}</p>`;
+  } catch (err) {
+    b.disabled = false; b.textContent = t("Ja, alles wissen");
+    $("#resetvenster .kader").insertAdjacentHTML("beforeend", `<div class="melding fout">${esc(err.message)}</div>`);
+  }
+}, true);
+
 /* ---------------- start ---------------- */
 (async () => {
   try {
@@ -803,6 +870,8 @@ $("#verder").onclick = async () => {
     S.gedrag.timeout_minuten = Number(S.gedrag.timeout_minuten);
   } catch (e) { T.melding = {soort: "fout", tekst: t("Kon instellingen niet laden: {0}", e.message)}; }
   teken();
+  $("#resetlabel").textContent = t("Fabrieksreset");
+  if (new URLSearchParams(location.search).get("reset") === "1") resetVenster(true);
 })();
 </script>
 </body>

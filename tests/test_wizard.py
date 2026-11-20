@@ -139,6 +139,11 @@ with sync_playwright() as pw:
     check(page.inner_text("#verder") == "Weiter", "taal wisselt direct (Duits)")
     page.click("button[data-taal=nl]")
     check(page.locator("nav img.logo").count() == 1, "Bdlsoft-logo in de setup")
+    page.click("#resetopen")
+    check(page.locator("#resetvenster.open #resetja").count() == 1, "fabrieksreset vraagt bevestiging")
+    page.screenshot(path=str(SHOTS / "0-reset.png"))
+    page.click("#resetnee")
+    check(page.locator("#resetvenster.open").count() == 0, "fabrieksreset annuleren")
     page.screenshot(path=str(SHOTS / "0-taal.png"))
     knop_zichtbaar("taal")
     page.click("#verder")                       # -> scherm

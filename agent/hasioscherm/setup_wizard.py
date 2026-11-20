@@ -89,6 +89,7 @@ class SetupWizard:
             ("POST", "/api/setup/plan"): self.r_plan,
             ("POST", "/api/setup/toepassen"): self.r_toepassen,
             ("POST", "/api/setup/afbreken"): self.r_afbreken,
+            ("POST", "/api/setup/fabrieksreset"): self.r_fabrieksreset,
         }
 
     def r_huidig(self, body, q):
@@ -193,6 +194,13 @@ class SetupWizard:
                          "bewegingssensoren": c.bewegingssensoren()}
         except HAFout as e:
             return 400, {"fout": str(e)}
+
+    def r_fabrieksreset(self, body, q):
+        if (body or {}).get("bevestig") != "RESET":
+            return 400, {"fout": "Bevestiging ontbreekt"}
+        self._vergeet_admin()
+        self.app.fabrieksreset_starten("setup op het scherm")
+        return 200, {"ok": True}
 
     def r_afbreken(self, body, q):
         self._vergeet_admin()

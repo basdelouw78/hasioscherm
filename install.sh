@@ -35,11 +35,11 @@ if [ "$UPDATE_ONLY" -eq 0 ]; then
   apt-get install -y --no-install-recommends \
     cage cog wlr-randr grim curl git ca-certificates \
     python3 python3-paho-mqtt python3-evdev python3-psutil python3-yaml python3-websockets network-manager \
-    dbus-user-session fonts-dejavu-core fonts-noto-color-emoji plymouth libraspberrypi-bin || \
+    dbus-user-session fonts-dejavu-core fonts-noto-color-emoji plymouth raspi-utils || \
   apt-get install -y --no-install-recommends \
     cage cog wlr-randr grim curl git ca-certificates \
     python3 python3-paho-mqtt python3-evdev python3-psutil python3-yaml python3-websockets network-manager \
-    dbus-user-session fonts-dejavu-core fonts-noto-color-emoji plymouth raspi-utils
+    dbus-user-session fonts-dejavu-core fonts-noto-color-emoji plymouth libraspberrypi-bin
   # Chromium als terugvaloptie (naam verschilt per Pi OS-versie).
   apt-get install -y --no-install-recommends chromium || \
     apt-get install -y --no-install-recommends chromium-browser || \

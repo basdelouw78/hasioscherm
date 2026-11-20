@@ -132,7 +132,7 @@ Het apparaat verschijnt vanzelf via MQTT Discovery.
 | Soort | Entiteiten |
 |---|---|
 | Bediening | Backlight (aan/uit + helderheid), Pagina (tekst/URL), Wekken, Terug naar dashboard, Pagina herladen, Screenshot maken |
-| Instellingen | Timeout, Helderheid dag, Helderheid nacht, Dag/nacht-helderheid, Eerste tik alleen wekken, Beveiligde modus, Setup openen, Updates controleren, Browser herstarten, Herstarten, Uitschakelen |
+| Instellingen | Timeout, Helderheid dag, Helderheid nacht, Dag/nacht-helderheid, Eerste tik alleen wekken, Beveiligde modus, Setup openen, Updates controleren, Fabrieksreset (2x drukken), Browser herstarten, Herstarten, Uitschakelen |
 | Status | Laatste aanraking, In gebruik |
 | Diagnose | Bestandssysteem, Updatecontrole, CPU-temperatuur, CPU-belasting, Geheugen, Schijf, Opgestart, IP-adres, Stroom/throttling, Ventilator, Te warm, Home Assistant bereikbaar |
 | Overig | Screenshot (afbeelding), Software (update) |
@@ -209,6 +209,22 @@ instellingen en het wijzigingslog.
 - Lukt het aanzetten twee keer niet, dan blijft het scherm schrijfbaar en meldt
   de sensor *aanzetten mislukt*. Zo komt het scherm nooit in een herstartlus.
 
+## Fabrieksreset
+
+Zet het scherm terug naar de toestand van een vers geflasht image: alle
+instellingen, de toestand en opgeslagen wifi-netwerken worden gewist, het
+apparaat verdwijnt uit Home Assistant en de setup begint opnieuw.
+
+- Op het scherm: in de setup linksonder **Fabrieksreset**, met bevestiging.
+- Vanuit Home Assistant: knop **Fabrieksreset (2x drukken)**. De eerste druk
+  toont de bevestiging op het scherm; een tweede druk binnen 60 seconden voert
+  de reset uit.
+
+Wat de setup in Home Assistant heeft aangemaakt (gebruiker, token,
+automatiseringen, blueprints) blijft bestaan; het wijzigingslog op de
+boot-partitie noemt die onderdelen, zodat je ze zelf kunt opruimen. In
+beveiligde modus gaat de reset in twee stappen met een herstart ertussen.
+
 ## Updates
 
 Het scherm controleert bij GitHub op een nieuwere release: kort na het
@@ -225,6 +241,11 @@ het wijzigingslog:
    als de update mislukt; dan blijft de oude versie staan.
 
 Met `updates.modus: automatisch` gebeurt dit elke nacht één keer tussen 03:00 en 05:00.
+
+**Een bepaalde versie** (ook een oudere, om terug te gaan): publiceer het
+versienummer, bijvoorbeeld `0.6.2`, op `hasioscherm/<id>/update/set`
+(Home Assistant → MQTT → Configureren → Publiceer). Het scherm controleert of
+die release bestaat en installeert hem dan op dezelfde manier.
 
 **Privé-repo?** Vul dan in de setup een GitHub-token in: een fine-grained token
 met alleen *Contents: read* op de repo. De updatecontrole en `update.sh`

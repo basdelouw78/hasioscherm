@@ -90,5 +90,15 @@ s = json.loads(urllib.request.urlopen("http://127.0.0.1:18832/api/status").read(
 check(s["ha_bereikbaar"] is False and s["dashboard"].endswith("/dashboard/index.html"), "lokale /api/status werkt")
 check(b"offline" in urllib.request.urlopen("http://127.0.0.1:18832/offline.html").read(), "offline.html geserveerd")
 
+# update-entiteit: HA keurt het hele bericht af bij een null-veld
+a.update_status = "ok"; a.latest_version = "9.9.9"
+up = a.update_payload()
+check(None not in up.values() and up["latest_version"] == "9.9.9", "update-bericht zonder null-velden (ok)")
+a.update_status = "mislukt: geen verbinding met GitHub"
+up = a.update_payload()
+check(None not in up.values() and "release_summary" in up, "update-bericht zonder null-velden (mislukt)")
+check("homeassistant/button/hasioscherm_scherm_woonkamer/update_controleren/config" in msgs
+      or any(t.endswith("update_controleren/config") for t in msgs), "knop Updates controleren")
+
 print("\nResultaat:", "ALLES OK" if not fails else f"{len(fails)} fout(en)")
 sys.exit(1 if fails else 0)

@@ -481,12 +481,17 @@ class App:
         except Exception as e:  # noqa: BLE001
             self.update_status = "mislukt: geen verbinding met GitHub"
             log.warning("Updatecontrole mislukt: %s", e)
-        self.client.publish(f"{self.base}/update", json.dumps({
-            "installed_version": __version__,
-            "latest_version": self.latest_version or __version__,
-            "release_summary": None if self.update_status == "ok" else f"Updatecontrole: {self.update_status}",
-        }), retain=True)
+        self.client.publish(f"{self.base}/update", json.dumps(self.update_payload()), retain=True)
         self.publish_state()
+
+    def update_payload(self) -> dict:
+        """Status voor de update-entiteit. Home Assistant keurt het hele bericht
+        af als een veld null is; lege velden dus weglaten."""
+        p = {"installed_version": __version__, "latest_version": self.latest_version or __version__,
+             "title": "hasioscherm"}
+        if self.update_status != "ok":
+            p["release_summary"] = f"Updatecontrole: {self.update_status}"[:255]
+        return p
 
     def install_update(self) -> None:
         if not self.latest_version or self.latest_version == __version__:

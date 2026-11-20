@@ -24,7 +24,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from . import __version__, system
-from .config import Config, config_write_path, dump_config, slugify
+from .config import TALEN, Config, config_write_path, dump_config, slugify
 from .ha_client import HAClient, HAFout, LoginFlow, login, test_bereikbaar
 
 log = logging.getLogger(__name__)
@@ -98,6 +98,7 @@ class SetupWizard:
             "setup_klaar": c.setup_klaar,
             "naam": c.naam,
             "rotatie": c.rotatie,
+            "taal": c.taal,
             "stijl": c.stijl,
             "ha_url": c.ha_url,
             "dashboard_url": c.dashboard_url,
@@ -209,6 +210,12 @@ class SetupWizard:
 
     def maak_plan(self, inst: dict) -> list[dict]:
         dev_id = slugify(inst["naam"])
+        taal = inst.get("taal", "nl")
+
+        def t(nl: str, en: str, de: str) -> str:
+            return {"en": en, "de": de}.get(taal, nl)
+
+        naam = inst["naam"]
         stappen: list[dict] = []
         if inst["koppeling"] == "automatisch":
             username = f"hasioscherm_{dev_id}"
@@ -219,34 +226,58 @@ class SetupWizard:
                 pass
             if bestaat:
                 stappen.append({"actie": "wachtwoord", "user_id": bestaat["id"], "username": username,
-                                "tekst": f"Home Assistant: bestaande gebruiker '{username}' krijgt een nieuw wachtwoord"})
+                                "tekst": t(f"Home Assistant: bestaande gebruiker '{username}' krijgt een nieuw wachtwoord",
+                                           f"Home Assistant: existing user '{username}' gets a new password",
+                                           f"Home Assistant: vorhandener Benutzer '{username}' erhält ein neues Passwort")})
             else:
                 stappen.append({"actie": "gebruiker", "username": username,
-                                "tekst": f"Home Assistant: nieuwe gebruiker '{inst['naam']}' (inlognaam '{username}'), "
-                                         "groep Gebruikers, alleen lokaal, geen beheerder"})
+                                "tekst": t(f"Home Assistant: nieuwe gebruiker '{naam}' (inlognaam '{username}'), "
+                                           "groep Gebruikers, alleen lokaal, geen beheerder",
+                                           f"Home Assistant: new user '{naam}' (login '{username}'), "
+                                           "group Users, local only, not an administrator",
+                                           f"Home Assistant: neuer Benutzer '{naam}' (Login '{username}'), "
+                                           "Gruppe Benutzer, nur lokal, kein Administrator")})
             stappen.append({"actie": "token", "username": username,
-                            "tekst": f"Home Assistant: token 'hasioscherm {inst['naam']}' voor die gebruiker "
-                                     "(voor MQTT en het dashboard)"})
+                            "tekst": t(f"Home Assistant: token 'hasioscherm {naam}' voor die gebruiker (voor MQTT en het dashboard)",
+                                       f"Home Assistant: token 'hasioscherm {naam}' for that user (for MQTT and the dashboard)",
+                                       f"Home Assistant: Token 'hasioscherm {naam}' für diesen Benutzer (für MQTT und das Dashboard)")})
+        # Automatiseringen kunnen bij elke koppeling, mits er een admin-login is.
+        if self._admin is not None:
             if inst["meldingen"]["notify_dienst"]:
+                dienst = inst["meldingen"]["notify_dienst"]
                 stappen.append({"actie": "blueprint", "bestand": "hasioscherm_meldingen.yaml",
-                                "tekst": "Home Assistant: blueprint 'hasioscherm - meldingen' opslaan"})
+                                "tekst": t("Home Assistant: blueprint 'hasioscherm - meldingen' opslaan",
+                                           "Home Assistant: save blueprint 'hasioscherm - meldingen'",
+                                           "Home Assistant: Blueprint 'hasioscherm - meldingen' speichern")})
                 stappen.append({"actie": "auto_meldingen",
-                                "tekst": f"Home Assistant: automatisering 'hasioscherm {inst['naam']} - meldingen' "
-                                         f"(offline of te warm → {inst['meldingen']['notify_dienst']})"})
+                                "tekst": t(f"Home Assistant: automatisering 'hasioscherm {naam} - meldingen' (offline of te warm → {dienst})",
+                                           f"Home Assistant: automation 'hasioscherm {naam} - meldingen' (offline or too hot → {dienst})",
+                                           f"Home Assistant: Automatisierung 'hasioscherm {naam} - meldingen' (offline oder zu warm → {dienst})")})
             if inst["beweging"]["entiteit"]:
+                ent = inst["beweging"]["entiteit"]
                 uit = inst["beweging"]["uit_na_minuten"]
                 stappen.append({"actie": "blueprint", "bestand": "hasioscherm_beweging.yaml",
-                                "tekst": "Home Assistant: blueprint 'hasioscherm - scherm aan/uit bij beweging' opslaan"})
+                                "tekst": t("Home Assistant: blueprint 'hasioscherm - scherm aan/uit bij beweging' opslaan",
+                                           "Home Assistant: save blueprint 'hasioscherm - scherm aan/uit bij beweging'",
+                                           "Home Assistant: Blueprint 'hasioscherm - scherm aan/uit bij beweging' speichern")})
                 stappen.append({"actie": "auto_beweging",
-                                "tekst": f"Home Assistant: automatisering 'hasioscherm {inst['naam']} - beweging' "
-                                         f"({inst['beweging']['entiteit']} wekt het scherm"
-                                         + (f", uit na {uit} min zonder beweging)" if uit else ")")})
+                                "tekst": t(f"Home Assistant: automatisering 'hasioscherm {naam} - beweging' ({ent} wekt het scherm"
+                                           + (f", uit na {uit} min zonder beweging)" if uit else ")"),
+                                           f"Home Assistant: automation 'hasioscherm {naam} - beweging' ({ent} wakes the screen"
+                                           + (f", off after {uit} min without motion)" if uit else ")"),
+                                           f"Home Assistant: Automatisierung 'hasioscherm {naam} - beweging' ({ent} weckt den Bildschirm"
+                                           + (f", aus nach {uit} Min. ohne Bewegung)" if uit else ")"))})
         if dev_id != self.cfg.device_id:
             stappen.append({"actie": "discovery_weg",
-                            "tekst": f"MQTT: oude apparaat '{self.cfg.naam}' uit Home Assistant verwijderen "
-                                     "(nieuwe naam → nieuw apparaat)"})
-        stappen.append({"actie": "config", "tekst": f"Scherm: instellingen opslaan in {config_write_path()}"})
-        stappen.append({"actie": "herstart", "tekst": "Scherm: software herstarten met de nieuwe instellingen"})
+                            "tekst": t(f"MQTT: oude apparaat '{self.cfg.naam}' uit Home Assistant verwijderen (nieuwe naam → nieuw apparaat)",
+                                       f"MQTT: remove old device '{self.cfg.naam}' from Home Assistant (new name → new device)",
+                                       f"MQTT: altes Gerät '{self.cfg.naam}' aus Home Assistant entfernen (neuer Name → neues Gerät)")})
+        stappen.append({"actie": "config", "tekst": t(f"Scherm: instellingen opslaan in {config_write_path()}",
+                                                      f"Screen: save settings to {config_write_path()}",
+                                                      f"Bildschirm: Einstellungen speichern in {config_write_path()}")})
+        stappen.append({"actie": "herstart", "tekst": t("Scherm: software herstarten met de nieuwe instellingen",
+                                                        "Screen: restart the software with the new settings",
+                                                        "Bildschirm: Software mit den neuen Einstellungen neu starten")})
         return stappen
 
     def r_toepassen(self, body, q):
@@ -328,7 +359,7 @@ class SetupWizard:
         d = {
             "setup": {"klaar": True, "datum": datetime.now().isoformat(timespec="seconds")},
             "scherm": {"naam": inst["naam"], "id": "", "rotatie": inst["rotatie"],
-                       "touch_draaiing": c.touch_draaiing},
+                       "touch_draaiing": c.touch_draaiing, "taal": inst["taal"]},
             "homeassistant": {"url": inst["ha_url"], "koppeling": inst["koppeling"], "token": ha_token},
             "dashboard": {"url": inst["dashboard_url"], "browser": inst["browser"], "stijl": inst["stijl"]},
             "mqtt": {"host": inst["mqtt"]["host"], "port": inst["mqtt"]["port"],
@@ -432,13 +463,16 @@ def valideer(b: dict) -> dict:
     repo = str((b.get("updates") or {}).get("repo") or "basdelouw78/hasioscherm").strip()
     if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo):
         raise ValueError("Update-repo moet de vorm eigenaar/naam hebben")
+    taal = b.get("taal", "nl")
+    if taal not in TALEN:
+        raise ValueError("Onbekende taal")
     browser = b.get("browser", "cog")
     if browser not in ("cog", "chromium"):
         raise ValueError("Onbekende browser")
     return {
         "naam": naam, "ha_url": ha_url, "koppeling": koppeling, "mqtt": mqtt,
         "ha_token": str(b.get("ha_token") or ""),
-        "rotatie": rotatie, "stijl": stijl, "browser": browser,
+        "rotatie": rotatie, "stijl": stijl, "browser": browser, "taal": taal,
         "dashboard_url": str(b.get("dashboard_url") or "standaard").strip() or "standaard",
         "gedrag": gedrag,
         "beweging": {"entiteit": str(bew.get("entiteit") or ""),

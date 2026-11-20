@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Bdlsoft
+Description=Bdlsoft-opstartscherm voor hasioscherm
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/bdlsoft
+ScriptFile=/usr/share/plymouth/themes/bdlsoft/bdlsoft.script

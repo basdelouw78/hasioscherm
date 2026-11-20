@@ -20,6 +20,26 @@ EOF
 }
 
 ROTATIE="$(lees rotatie 90)"
+ALLEEN_THEMA=0; GEEN_INITRAMFS=0
+for a in "$@"; do
+  case "$a" in --alleen-thema) ALLEEN_THEMA=1 ;; --geen-initramfs) GEEN_INITRAMFS=1 ;; esac
+done
+
+# Opstartscherm: rotatie in het Plymouth-thema gelijk houden met de setup.
+THEMA=/usr/share/plymouth/themes/bdlsoft/bdlsoft.script
+case "$ROTATIE" in 0|90|180|270) ;; *) ROTATIE=90 ;; esac
+if [ -f "$THEMA" ] && ! grep -q "^rotatie = $ROTATIE;" "$THEMA"; then
+  if grep -q ' / overlay ' /proc/mounts; then
+    echo "opstartscherm: rotatie wijkt af, maar beveiligde modus staat aan; later bijwerken"
+  else
+    sed -i "s/^rotatie = .*/rotatie = $ROTATIE; # HASIOSCHERM_ROTATIE/" "$THEMA"
+    echo "opstartscherm: rotatie $ROTATIE"
+    if [ "$GEEN_INITRAMFS" -eq 0 ] && command -v update-initramfs >/dev/null; then
+      systemd-run --no-block --unit=hasioscherm-initramfs update-initramfs -u -k all >/dev/null 2>&1 || true
+    fi
+  fi
+fi
+[ "$ALLEEN_THEMA" -eq 1 ] && exit 0
 TOUCH="$(lees touch_draaiing auto)"
 [ "$TOUCH" = "auto" ] && TOUCH="$ROTATIE"
 
@@ -45,4 +65,7 @@ echo "touch-kalibratie: draaiing=$TOUCH matrix='${MATRIX:-geen}'"
 udevadm control --reload 2>/dev/null || true
 udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true
 udevadm settle --timeout=5 2>/dev/null || true
+
+# Opstartscherm laten staan tot de browser tekent (geen zwarte flits).
+command -v plymouth >/dev/null && plymouth quit --retain-splash 2>/dev/null || true
 exit 0

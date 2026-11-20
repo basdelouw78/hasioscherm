@@ -10,4 +10,7 @@
 - Setup-wizard: `kiosk/setup/index.html` (eigen schermtoetsenbord, geen native select) + `agent/hasioscherm/setup_wizard.py`. HA-wijzigingen altijd via plan → bevestigen → uitvoeren → wijzigingslog.
 - Image: pi-gen stage in `image/stage-hasioscherm`, gebouwd door `.github/workflows/build-image.yml`; die stage draait `install.sh` in de chroot.
 - Beveiligde modus: `agent/hasioscherm/alleen_lezen.py` (raspi-config overlayfs, updates via markeerbestand op de boot-partitie: uitschakelen → installeren → klaar/mislukt → terug aan). Nooit een herstartlus: pogingen worden geteld.
+- Talen: NL (bron), EN, DE. Setup en dashboard gebruiken `t("Nederlandse tekst")` met vertaaltabellen in het bestand; de backend vertaalt alleen de plan-teksten. Nieuwe tekst = ook EN/DE toevoegen (de wizardtest controleert taalwissel).
+- Merk: `kiosk/merk/` (Bdlsoft-logo, SVG-bron + PNG). Opstartscherm: Plymouth-thema `plymouth/bdlsoft/` (script; draait mee met `scherm.rotatie`, bijgewerkt door `kiosk/touch-kalibratie.sh`).
+- Layout: schermen zijn 1920x1200; kolom-layouts altijd met `min-height: 0` zodat de knoppenbalk zichtbaar blijft. Scrollen gaat via eigen veeg-code (cog scrolt niet altijd zelf).
 - Frame: `frame/` (inbouwbak, glas op het stucwerk).

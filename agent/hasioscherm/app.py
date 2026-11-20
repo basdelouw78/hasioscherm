@@ -606,6 +606,7 @@ class App:
             "naam": self.cfg.naam,
             "versie": __version__,
             "setup_nodig": self.wizard.nodig,
+            "taal": self.cfg.taal,
         })}
         # Gegevens voor het meegeleverde standaarddashboard. Alleen bereikbaar
         # vanaf het scherm zelf (127.0.0.1) en zonder CORS, dus andere pagina's
@@ -616,6 +617,7 @@ class App:
             "ha_url": self.cfg.ha_url,
             "token": self.cfg.ha_token,
             "stijl": self.cfg.stijl,
+            "taal": self.cfg.taal,
             "periode": self.period(),
         })
         routes.update(self.wizard.routes())

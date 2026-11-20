@@ -3,17 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hasioscherm - verbinding zoeken</title>
+<title>hasioscherm</title>
 <style>
   html, body { margin: 0; height: 100%; background: #0e1116; color: #e6e8eb;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; cursor: none;
-    user-select: none; -webkit-user-select: none; }
-  main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vh; }
-  #tijd { font-size: 22vh; font-weight: 200; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
-  #datum { font-size: 4vh; color: #9aa3ad; text-transform: capitalize; }
-  #status { margin-top: 6vh; font-size: 3vh; color: #9aa3ad; display: flex; align-items: center; gap: 1.2vh; }
-  .stip { width: 1.4vh; height: 1.4vh; border-radius: 50%; background: #e0a43a; animation: puls 1.6s ease-in-out infinite; }
-  @keyframes puls { 0%,100% { opacity: .25 } 50% { opacity: 1 } }
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif; cursor: none;
+    user-select: none; -webkit-user-select: none; overflow: hidden; }
+  main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  /* zelfde opbouw als het opstartscherm (Plymouth): logo op 42%, balk eronder */
+  #logo { width: 900px; max-width: 70vw; margin-top: -8vh; }
+  #balk { width: 520px; max-width: 50vw; height: 8px; background: #262d37; margin-top: 90px; overflow: hidden; }
+  #vulling { height: 100%; width: 0; background: #3b82f6; transition: width .4s ease-out; }
+  #status { margin-top: 32px; font-size: 22px; color: #9aa3ad; min-height: 30px; text-align: center; }
+  #klok { position: fixed; top: 3vh; right: 4vh; text-align: right; color: #9aa3ad; }
+  #tijd { font-size: 6vh; font-weight: 300; font-variant-numeric: tabular-nums; color: #e6e8eb; line-height: 1; }
+  #datum { font-size: 2.2vh; margin-top: .6vh; }
   #naam { position: fixed; bottom: 2vh; right: 3vh; font-size: 2vh; color: #4b5560; }
   #instellingen { position: fixed; bottom: 2vh; left: 3vh; font-size: 2.2vh; color: #9aa3ad;
     background: #1a1f27; border: 1px solid #2a313b; border-radius: 1.2vh; padding: 1.4vh 2.4vh;
@@ -22,27 +25,52 @@
 </head>
 <body>
 <main>
-  <div id="tijd">--:--</div>
-  <div id="datum"></div>
-  <div id="status"><span class="stip"></span><span id="tekst">Verbinding met Home Assistant zoeken…</span></div>
+  <img id="logo" src="/merk/bdlsoft-logo.png" alt="Bdlsoft">
+  <div id="balk"><div id="vulling"></div></div>
+  <div id="status">&nbsp;</div>
 </main>
+<div id="klok"><div id="tijd">--:--</div><div id="datum"></div></div>
 <div id="naam"></div>
-<a id="instellingen" href="/setup/index.html">⚙ Instellingen</a>
+<a id="instellingen" href="/setup/index.html">⚙ <span id="inst-tekst">Instellingen</span></a>
 <script>
-  // Wordt getoond als Home Assistant (nog) niet bereikbaar is, en bij het
-  // opstarten. Vraagt de lokale agent of HA bereikbaar is en gaat dan terug
-  // naar de pagina in ?target=...
+  // Opstart- en offline-scherm. Toont het Bdlsoft-logo met een laadbalk,
+  // vraagt de lokale agent of Home Assistant bereikbaar is en gaat dan door
+  // naar de pagina in ?target=... (of het dashboard).
+  const TEKST = {
+    nl: {start: "Opstarten…", zoek: "Verbinding met Home Assistant zoeken…", poging: "poging",
+         laden: "Dashboard laden…", inst: "Instellingen", loc: "nl-NL"},
+    en: {start: "Starting…", zoek: "Looking for Home Assistant…", poging: "attempt",
+         laden: "Loading dashboard…", inst: "Settings", loc: "en-GB"},
+    de: {start: "Startet…", zoek: "Verbindung zu Home Assistant wird gesucht…", poging: "Versuch",
+         laden: "Dashboard wird geladen…", inst: "Einstellungen", loc: "de-DE"},
+  };
+  let L = TEKST.nl;
   const params = new URLSearchParams(location.search);
   let target = params.get("target");
-  const tijd = document.getElementById("tijd");
-  const datum = document.getElementById("datum");
-  const tekst = document.getElementById("tekst");
+  const $ = id => document.getElementById(id);
   let pogingen = 0;
+  const begin = Date.now();
 
   function klok() {
     const nu = new Date();
-    tijd.textContent = nu.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
-    datum.textContent = nu.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
+    $("tijd").textContent = nu.toLocaleTimeString(L.loc, { hour: "2-digit", minute: "2-digit" });
+    $("datum").textContent = nu.toLocaleDateString(L.loc, { weekday: "long", day: "numeric", month: "long" });
+  }
+
+  // Rustig oplopende balk (net als het opstartscherm); vol bij doorsturen.
+  let vol_ = false;
+  function balk(vol) {
+    if (vol) vol_ = true;
+    if (vol_) { $("vulling").style.width = "100%"; return; }
+    const t = (Date.now() - begin) / 1000;
+    const p = Math.min(0.92, 0.35 + 0.6 * (t / (t + 8)));
+    $("vulling").style.width = (p * 100).toFixed(1) + "%";
+  }
+
+  function taal(code) {
+    L = TEKST[code] || TEKST.nl;
+    document.documentElement.lang = code || "nl";
+    $("inst-tekst").textContent = L.inst;
   }
 
   async function controleer() {
@@ -50,23 +78,27 @@
     try {
       const r = await fetch("/api/status", { cache: "no-store" });
       const s = await r.json();
-      if (s.naam) document.getElementById("naam").textContent = s.naam + " · v" + s.versie;
-      if (s.setup_nodig) { location.replace("/setup/index.html"); return; }
+      taal(s.taal);
+      if (s.naam) $("naam").textContent = s.naam + " · v" + s.versie;
+      if (s.setup_nodig) { balk(true); setTimeout(() => location.replace("/setup/index.html"), 300); return; }
       if (!target) target = s.dashboard;
       if (s.ha_bereikbaar && target) {
-        tekst.textContent = "Verbonden, dashboard laden…";
-        location.replace(target);
+        $("status").textContent = L.laden;
+        balk(true);
+        setTimeout(() => location.replace(target), 400);
         return;
       }
-      tekst.textContent = "Verbinding met Home Assistant zoeken… (poging " + pogingen + ")";
+      $("status").textContent = pogingen > 2 ? L.zoek + " (" + L.poging + " " + pogingen + ")" : L.zoek;
     } catch (e) {
-      tekst.textContent = "Scherm-software start op…";
+      $("status").textContent = L.start;
     }
     setTimeout(controleer, pogingen < 10 ? 2000 : 5000);
   }
 
   klok();
   setInterval(klok, 1000);
+  setInterval(() => balk(false), 500);
+  balk(false);
   controleer();
 </script>
 </body>

@@ -35,11 +35,11 @@ if [ "$UPDATE_ONLY" -eq 0 ]; then
   apt-get install -y --no-install-recommends \
     cage cog wlr-randr grim curl git ca-certificates \
     python3 python3-paho-mqtt python3-evdev python3-psutil python3-yaml python3-websockets network-manager \
-    dbus-user-session fonts-dejavu-core libraspberrypi-bin || \
+    dbus-user-session fonts-dejavu-core fonts-noto-color-emoji plymouth libraspberrypi-bin || \
   apt-get install -y --no-install-recommends \
     cage cog wlr-randr grim curl git ca-certificates \
     python3 python3-paho-mqtt python3-evdev python3-psutil python3-yaml python3-websockets network-manager \
-    dbus-user-session fonts-dejavu-core raspi-utils
+    dbus-user-session fonts-dejavu-core fonts-noto-color-emoji plymouth raspi-utils
   # Chromium als terugvaloptie (naam verschilt per Pi OS-versie).
   apt-get install -y --no-install-recommends chromium || \
     apt-get install -y --no-install-recommends chromium-browser || \
@@ -92,6 +92,23 @@ if [ "$UPDATE_ONLY" -eq 0 ]; then
   if [ -f "$BOOT/cmdline.txt" ] && ! grep -q 'vt.global_cursor_default=0' "$BOOT/cmdline.txt"; then
     log "Stille opstart (geen cursor/logo)"
     sed -i '1 s/$/ quiet loglevel=3 logo.nologo vt.global_cursor_default=0/' "$BOOT/cmdline.txt"
+  fi
+  if [ -f "$BOOT/cmdline.txt" ] && ! grep -qw 'splash' "$BOOT/cmdline.txt"; then
+    log "Opstartscherm aanzetten (Plymouth)"
+    sed -i '1 s/$/ splash plymouth.ignore-serial-consoles/' "$BOOT/cmdline.txt"
+  fi
+fi
+
+# Bdlsoft-opstartscherm (Plymouth). Ook bij --update bijwerken.
+if command -v plymouth-set-default-theme >/dev/null; then
+  log "Opstartscherm Bdlsoft installeren"
+  THEMA=/usr/share/plymouth/themes/bdlsoft
+  mkdir -p "$THEMA"
+  cp "$DEST"/plymouth/bdlsoft/* "$THEMA"/
+  "$DEST/kiosk/touch-kalibratie.sh" --alleen-thema --geen-initramfs || true
+  plymouth-set-default-theme bdlsoft || true
+  if command -v update-initramfs >/dev/null; then
+    update-initramfs -u -k all >/dev/null 2>&1 || log "Let op: initramfs bijwerken mislukt (opstartscherm verschijnt dan later)"
   fi
 fi
 

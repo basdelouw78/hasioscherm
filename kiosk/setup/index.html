@@ -14,8 +14,13 @@
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--tekst);
     font: 22px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
     user-select: none; -webkit-user-select: none; overflow: hidden; }
-  #app { display: grid; grid-template-columns: 340px 1fr; height: 100%; }
-  nav { background: var(--paneel); border-right: 1px solid var(--rand); padding: 36px 24px; }
+  #app { display: grid; grid-template-columns: 340px 1fr; grid-template-rows: 100%; height: 100%; }
+  nav { background: var(--paneel); border-right: 1px solid var(--rand); padding: 32px 24px; min-height: 0;
+    overflow-y: auto; display: flex; flex-direction: column; }
+  nav .logo { width: 230px; margin: 0 0 26px 4px; }
+  nav .door { margin-top: auto; padding-top: 20px; color: var(--zacht); font-size: 15px; display: flex;
+    align-items: center; gap: 10px; }
+  nav .door img { width: 28px; height: 28px; }
   nav h1 { font-size: 26px; margin: 0 0 4px; }
   nav .versie { color: var(--zacht); font-size: 16px; margin-bottom: 32px; }
   nav ol { list-style: none; padding: 0; margin: 0; counter-reset: s; }
@@ -26,8 +31,17 @@
   nav li.actief { background: #1d2430; color: var(--tekst); }
   nav li.actief::before { border-color: var(--accent); color: var(--accent); }
   nav li.klaar::before { content: "✓"; background: var(--goed); border-color: var(--goed); color: #fff; }
-  main { display: flex; flex-direction: column; height: 100%; min-width: 0; }
-  #inhoud { flex: 1; overflow-y: auto; padding: 40px 56px 24px; }
+  main { display: flex; flex-direction: column; height: 100%; min-width: 0; min-height: 0; }
+  /* min-height: 0 zorgt dat de inhoud scrolt en de knoppenbalk altijd in beeld blijft */
+  #inhoud { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 40px 56px 24px; touch-action: none;
+    overscroll-behavior: contain; }
+  footer { flex: none; }
+  .lijst { touch-action: none; }
+  .talen { display: grid; grid-template-columns: repeat(3, minmax(220px, 300px)); gap: 20px; margin-top: 10px; }
+  .talen button { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 30px 20px;
+    border: 2px solid var(--rand); background: #12171e; font-size: 26px; }
+  .talen button .vlag { font-size: 54px; line-height: 1; }
+  .talen button.gekozen { border-color: var(--accent); background: #15233b; }
   #inhoud h2 { font-size: 34px; margin: 0 0 8px; }
   #inhoud p.uitleg { color: var(--zacht); margin: 0 0 28px; max-width: 1100px; }
   footer { display: flex; gap: 16px; justify-content: flex-end; padding: 20px 56px;
@@ -90,9 +104,11 @@
 <body>
 <div id="app">
   <nav>
+    <img class="logo" src="/merk/bdlsoft-logo.png" alt="Bdlsoft">
     <h1>hasioscherm</h1>
     <div class="versie" id="versie">setup</div>
     <ol id="stappenlijst"></ol>
+    <div class="door"><img src="/merk/bdlsoft-icoon.png" alt="">© Bdlsoft</div>
   </nav>
   <main>
     <div id="inhoud"></div>
@@ -116,12 +132,258 @@ async function api(pad, data) {
     body: JSON.stringify(data)};
   const r = await fetch("/api/setup/" + pad, opt);
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.fout || ("Fout " + r.status));
+  if (!r.ok) throw new Error(j.fout || (t("Fout") + " " + r.status));
   return j;
+}
+
+/* ---------------- taal ---------------- */
+const TALEN = [["nl", "Nederlands", "🇳🇱"], ["en", "English", "🇬🇧"], ["de", "Deutsch", "🇩🇪"]];
+let TAAL = "nl";
+// Teksten staan in het Nederlands in de code; dit zijn de vertalingen.
+const VERTALING = /*VERTALING*/{
+"en": {
+"Fout": "Error",
+"Scherm": "Screen",
+"Netwerk": "Network",
+"Koppelen": "Connect",
+"Gedrag": "Behaviour",
+"Beweging & meldingen": "Motion & alerts",
+"Overzicht": "Summary",
+"spatie": "space",
+"Klaar": "Done",
+"verberg": "hide",
+"toon": "show",
+"Ingelogd als beheerder.": "Logged in as administrator.",
+"Verificatiecode (MFA)": "Verification code (MFA)",
+"Bevestigen": "Confirm",
+"Gebruikersnaam": "Username",
+"Wachtwoord": "Password",
+"Inloggen": "Log in",
+"Kies je taal": "Choose your language",
+"Welkom": "Welcome",
+"Stel dit scherm in. Alles is later te wijzigen: houd <b>3 vingers 4 seconden</b> op het scherm, of gebruik de knop <b>Setup openen</b> in Home Assistant of ⚙ op het offline-scherm.": "Set up this screen. Everything can be changed later: hold <b>3 fingers for 4 seconds</b> on the screen, or use the <b>Open setup</b> button in Home Assistant or ⚙ on the offline screen.",
+"Naam van het scherm (zo heet het apparaat in Home Assistant)": "Screen name (the device name in Home Assistant)",
+"Stand": "Orientation",
+"Liggend": "Landscape",
+"Liggend (180° gedraaid)": "Landscape (rotated 180°)",
+"Staand": "Portrait",
+"Staand (ondersteboven)": "Portrait (upside down)",
+"Stijl van het dashboard": "Dashboard style",
+"Automatisch dag/nacht": "Automatic day/night",
+"Donker": "Dark",
+"Licht": "Light",
+"Dashboard": "Dashboard",
+"Standaard dashboard (meegeleverd)": "Standard dashboard (included)",
+"Eigen dashboard": "Own dashboard",
+"Eigen dashboard: pad op Home Assistant (bijv. /local/mijn/dash.html) of volledig adres": "Own dashboard: path on Home Assistant (e.g. /local/my/dash.html) or full address",
+"Het standaard dashboard haalt zelf uit Home Assistant wat er is: weer, personen en per ruimte de lampen, schakelaars, klimaat en media.": "The standard dashboard picks up what is in Home Assistant: weather, people and, per area, lights, switches, climate and media.",
+"Browser": "Browser",
+"Cog (licht, aanbevolen)": "Cog (lightweight, recommended)",
+"Chromium (terugvaloptie)": "Chromium (fallback)",
+"Er is een kabelverbinding (PoE). Wifi is niet nodig; je kunt deze stap overslaan.": "There is a wired connection (PoE). Wi-Fi is not needed; you can skip this step.",
+"Geen kabelverbinding gevonden. Kies een wifi-netwerk.": "No wired connection found. Choose a Wi-Fi network.",
+"IP-adres": "IP address",
+"Wifi-netwerken": "Wi-Fi networks",
+"Geen netwerken gevonden (of wifi niet beschikbaar).": "No networks found (or Wi-Fi not available).",
+"Wachtwoord voor {0}": "Password for {0}",
+"Verbinden": "Connect",
+"Opnieuw zoeken": "Search again",
+"Het adres van je Home Assistant in het lokale netwerk, bijvoorbeeld <b>192.168.1.10</b> (poort 8123 wordt automatisch toegevoegd).": "The address of your Home Assistant on the local network, for example <b>192.168.1.10</b> (port 8123 is added automatically).",
+"Adres van Home Assistant": "Home Assistant address",
+"Testen": "Test",
+"Hoe wil je koppelen?": "How do you want to connect?",
+"Automatisch (eenmalige admin-login)": "Automatic (one-time admin login)",
+"Handmatig (MQTT-gegevens zelf invullen)": "Manual (enter MQTT details yourself)",
+"Automatisch: na een eenmalige admin-login maakt de wizard een eigen gebruiker en token voor dit scherm aan, en desgewenst automatiseringen. Je ziet eerst precies wat er gebeurt en moet dat bevestigen. Het admin-wachtwoord wordt niet bewaard.": "Automatic: after a one-time admin login the wizard creates a user and token for this screen, and automations if you like. You first see exactly what will happen and must confirm it. The admin password is not stored.",
+"Handmatig: je vult zelf de MQTT-gebruiker en eventueel een token in. Automatiseringen kun je daarna nog laten aanmaken met een eenmalige admin-login.": "Manual: you enter the MQTT user and optionally a token yourself. You can still have automations created afterwards with a one-time admin login.",
+"Eenmalige admin-login": "One-time admin login",
+"Log in met een <b>beheerder</b>-account van Home Assistant. Dit wordt alleen gebruikt om de onderdelen in de volgende stappen aan te maken, en daarna vergeten.": "Log in with a Home Assistant <b>administrator</b> account. It is only used to create the items in the next steps, and forgotten afterwards.",
+"Handmatige koppeling": "Manual connection",
+"De Mosquitto-add-on accepteert gewone Home Assistant-gebruikers. Maak bijvoorbeeld een gebruiker <b>hasioscherm</b> aan en vul die hier in.": "The Mosquitto add-on accepts regular Home Assistant users. For example, create a user <b>hasioscherm</b> and enter it here.",
+"MQTT-server": "MQTT server",
+"zelfde als Home Assistant": "same as Home Assistant",
+"Poort": "Port",
+"MQTT-gebruiker": "MQTT user",
+"MQTT-wachtwoord": "MQTT password",
+"(ongewijzigd)": "(unchanged)",
+"Home Assistant-token (optioneel, voor het dashboard)": "Home Assistant token (optional, for the dashboard)",
+"Wanneer het scherm uit en aan gaat, en hoe fel het is. Timeout en helderheid kun je later ook vanuit Home Assistant aanpassen.": "When the screen turns off and on, and how bright it is. Timeout and brightness can also be changed later from Home Assistant.",
+"Scherm uit na zoveel minuten zonder aanraking (0 = nooit)": "Screen off after this many minutes without touch (0 = never)",
+"Eerste tik op een donker scherm alleen wekken": "First tap on a dark screen only wakes it",
+"Helderheid overdag": "Brightness by day",
+"Helderheid 's nachts": "Brightness at night",
+"Dag begint (UU:MM)": "Day starts (HH:MM)",
+"Nacht begint (UU:MM)": "Night starts (HH:MM)",
+"Vaste tijden waarop het scherm uit is (een tik wekt het tijdelijk)": "Fixed times when the screen is off (a tap wakes it temporarily)",
+"van": "from",
+"tot": "to",
+"Verwijderen": "Remove",
+"+ Tijdvak toevoegen": "+ Add time slot",
+"Software-updates": "Software updates",
+"Via knop in Home Assistant": "Via button in Home Assistant",
+"Automatisch 's nachts": "Automatically at night",
+"Updates uit GitHub-repo (eigenaar/naam)": "Updates from GitHub repo (owner/name)",
+"GitHub-token (alleen nodig bij een privé-repo)": "GitHub token (only needed for a private repo)",
+"leeg laten bij een openbare repo": "leave empty for a public repo",
+"Beveiligde modus (alleen-lezen): stroomuitval kan de SSD niet beschadigen": "Protected mode (read-only): a power cut cannot damage the SSD",
+"Optioneel. Laat Home Assistant het scherm aan en uit zetten met een bewegingssensor (bijvoorbeeld een PIR van het alarm), en stuur een melding naar je telefoon als het scherm offline gaat of te warm wordt.": "Optional. Let Home Assistant turn the screen on and off with a motion sensor (for example an alarm PIR), and send a notification to your phone when the screen goes offline or gets too hot.",
+"Om deze automatiseringen in Home Assistant aan te maken is een eenmalige login met een beheerder-account nodig. Het wachtwoord wordt niet bewaard. Wil je dit niet, ga dan gewoon verder.": "Creating these automations in Home Assistant needs a one-time login with an administrator account. The password is not stored. If you don't want this, just continue.",
+"Gegevens ophalen uit Home Assistant…": "Fetching data from Home Assistant…",
+"Scherm aan/uit met bewegingssensor": "Screen on/off with motion sensor",
+"Geen (alleen aanraken)": "None (touch only)",
+"Meldingen naar": "Send alerts to",
+"Geen meldingen": "No alerts",
+"Scherm uit na zoveel minuten zonder beweging (0 = niet)": "Screen off after this many minutes without motion (0 = never)",
+"Klaar!": "Done!",
+"De instellingen zijn opgeslagen. Het scherm herstart de software en toont daarna het dashboard.": "The settings have been saved. The screen restarts the software and then shows the dashboard.",
+"Elke wijziging staat ook in <b>hasioscherm-wijzigingen.log</b> op de boot-partitie.": "Every change is also listed in <b>hasioscherm-wijzigingen.log</b> on the boot partition.",
+"Dit gaat er gebeuren. Er verandert niets totdat je op <b>Bevestigen</b> drukt.": "This is what will happen. Nothing changes until you press <b>Confirm</b>.",
+"Plan maken…": "Making plan…",
+"Terug": "Back",
+"Sluiten": "Close",
+"Naar dashboard": "To dashboard",
+"Bezig…": "Working…",
+"Volgende": "Next",
+"versie {0}": "version {0}",
+"Verbinden…": "Connecting…",
+"Verbonden met {0}": "Connected to {0}",
+"Testen…": "Testing…",
+"Home Assistant gevonden op {0}": "Home Assistant found at {0}",
+"Er antwoordt iets op {0}, maar het lijkt geen Home Assistant.": "Something answers at {0}, but it does not look like Home Assistant.",
+"Niet bereikbaar": "Not reachable",
+"Inloggen…": "Logging in…",
+"Vul de code uit je authenticator-app in.": "Enter the code from your authenticator app.",
+"Kon instellingen niet laden: {0}": "Could not load settings: {0}"
+},
+"de": {
+"Fout": "Fehler",
+"Scherm": "Bildschirm",
+"Netwerk": "Netzwerk",
+"Koppelen": "Verbinden",
+"Gedrag": "Verhalten",
+"Beweging & meldingen": "Bewegung & Meldungen",
+"Overzicht": "Übersicht",
+"spatie": "Leertaste",
+"Klaar": "Fertig",
+"verberg": "verbergen",
+"toon": "zeigen",
+"Ingelogd als beheerder.": "Als Administrator angemeldet.",
+"Verificatiecode (MFA)": "Bestätigungscode (MFA)",
+"Bevestigen": "Bestätigen",
+"Gebruikersnaam": "Benutzername",
+"Wachtwoord": "Passwort",
+"Inloggen": "Anmelden",
+"Kies je taal": "Sprache wählen",
+"Welkom": "Willkommen",
+"Stel dit scherm in. Alles is later te wijzigen: houd <b>3 vingers 4 seconden</b> op het scherm, of gebruik de knop <b>Setup openen</b> in Home Assistant of ⚙ op het offline-scherm.": "Richte diesen Bildschirm ein. Alles lässt sich später ändern: halte <b>3 Finger 4 Sekunden</b> auf den Bildschirm, oder nutze die Taste <b>Setup öffnen</b> in Home Assistant oder ⚙ auf dem Offline-Bildschirm.",
+"Naam van het scherm (zo heet het apparaat in Home Assistant)": "Name des Bildschirms (Gerätename in Home Assistant)",
+"Stand": "Ausrichtung",
+"Liggend": "Querformat",
+"Liggend (180° gedraaid)": "Querformat (um 180° gedreht)",
+"Staand": "Hochformat",
+"Staand (ondersteboven)": "Hochformat (auf dem Kopf)",
+"Stijl van het dashboard": "Stil des Dashboards",
+"Automatisch dag/nacht": "Automatisch Tag/Nacht",
+"Donker": "Dunkel",
+"Licht": "Hell",
+"Dashboard": "Dashboard",
+"Standaard dashboard (meegeleverd)": "Standard-Dashboard (mitgeliefert)",
+"Eigen dashboard": "Eigenes Dashboard",
+"Eigen dashboard: pad op Home Assistant (bijv. /local/mijn/dash.html) of volledig adres": "Eigenes Dashboard: Pfad auf Home Assistant (z. B. /local/mein/dash.html) oder vollständige Adresse",
+"Het standaard dashboard haalt zelf uit Home Assistant wat er is: weer, personen en per ruimte de lampen, schakelaars, klimaat en media.": "Das Standard-Dashboard holt sich selbst aus Home Assistant, was vorhanden ist: Wetter, Personen und pro Bereich Lampen, Schalter, Klima und Medien.",
+"Browser": "Browser",
+"Cog (licht, aanbevolen)": "Cog (leicht, empfohlen)",
+"Chromium (terugvaloptie)": "Chromium (Ausweichlösung)",
+"Er is een kabelverbinding (PoE). Wifi is niet nodig; je kunt deze stap overslaan.": "Es gibt eine Kabelverbindung (PoE). WLAN ist nicht nötig; du kannst diesen Schritt überspringen.",
+"Geen kabelverbinding gevonden. Kies een wifi-netwerk.": "Keine Kabelverbindung gefunden. Wähle ein WLAN.",
+"IP-adres": "IP-Adresse",
+"Wifi-netwerken": "WLAN-Netzwerke",
+"Geen netwerken gevonden (of wifi niet beschikbaar).": "Keine Netzwerke gefunden (oder WLAN nicht verfügbar).",
+"Wachtwoord voor {0}": "Passwort für {0}",
+"Verbinden": "Verbinden",
+"Opnieuw zoeken": "Erneut suchen",
+"Het adres van je Home Assistant in het lokale netwerk, bijvoorbeeld <b>192.168.1.10</b> (poort 8123 wordt automatisch toegevoegd).": "Die Adresse deines Home Assistant im lokalen Netzwerk, zum Beispiel <b>192.168.1.10</b> (Port 8123 wird automatisch ergänzt).",
+"Adres van Home Assistant": "Adresse von Home Assistant",
+"Testen": "Testen",
+"Hoe wil je koppelen?": "Wie möchtest du verbinden?",
+"Automatisch (eenmalige admin-login)": "Automatisch (einmalige Admin-Anmeldung)",
+"Handmatig (MQTT-gegevens zelf invullen)": "Manuell (MQTT-Daten selbst eingeben)",
+"Automatisch: na een eenmalige admin-login maakt de wizard een eigen gebruiker en token voor dit scherm aan, en desgewenst automatiseringen. Je ziet eerst precies wat er gebeurt en moet dat bevestigen. Het admin-wachtwoord wordt niet bewaard.": "Automatisch: nach einer einmaligen Admin-Anmeldung legt der Assistent einen eigenen Benutzer und Token für diesen Bildschirm an, und auf Wunsch Automatisierungen. Du siehst vorher genau, was passiert, und musst es bestätigen. Das Admin-Passwort wird nicht gespeichert.",
+"Handmatig: je vult zelf de MQTT-gebruiker en eventueel een token in. Automatiseringen kun je daarna nog laten aanmaken met een eenmalige admin-login.": "Manuell: du gibst MQTT-Benutzer und ggf. einen Token selbst ein. Automatisierungen kannst du danach noch mit einer einmaligen Admin-Anmeldung anlegen lassen.",
+"Eenmalige admin-login": "Einmalige Admin-Anmeldung",
+"Log in met een <b>beheerder</b>-account van Home Assistant. Dit wordt alleen gebruikt om de onderdelen in de volgende stappen aan te maken, en daarna vergeten.": "Melde dich mit einem <b>Administrator</b>-Konto von Home Assistant an. Es wird nur verwendet, um die Elemente der nächsten Schritte anzulegen, und danach vergessen.",
+"Handmatige koppeling": "Manuelle Verbindung",
+"De Mosquitto-add-on accepteert gewone Home Assistant-gebruikers. Maak bijvoorbeeld een gebruiker <b>hasioscherm</b> aan en vul die hier in.": "Das Mosquitto-Add-on akzeptiert normale Home-Assistant-Benutzer. Lege zum Beispiel einen Benutzer <b>hasioscherm</b> an und gib ihn hier ein.",
+"MQTT-server": "MQTT-Server",
+"zelfde als Home Assistant": "wie Home Assistant",
+"Poort": "Port",
+"MQTT-gebruiker": "MQTT-Benutzer",
+"MQTT-wachtwoord": "MQTT-Passwort",
+"(ongewijzigd)": "(unverändert)",
+"Home Assistant-token (optioneel, voor het dashboard)": "Home-Assistant-Token (optional, für das Dashboard)",
+"Wanneer het scherm uit en aan gaat, en hoe fel het is. Timeout en helderheid kun je later ook vanuit Home Assistant aanpassen.": "Wann der Bildschirm aus- und angeht und wie hell er ist. Timeout und Helligkeit kannst du später auch in Home Assistant ändern.",
+"Scherm uit na zoveel minuten zonder aanraking (0 = nooit)": "Bildschirm aus nach so vielen Minuten ohne Berührung (0 = nie)",
+"Eerste tik op een donker scherm alleen wekken": "Erstes Tippen auf einen dunklen Bildschirm weckt nur",
+"Helderheid overdag": "Helligkeit am Tag",
+"Helderheid 's nachts": "Helligkeit in der Nacht",
+"Dag begint (UU:MM)": "Tag beginnt (HH:MM)",
+"Nacht begint (UU:MM)": "Nacht beginnt (HH:MM)",
+"Vaste tijden waarop het scherm uit is (een tik wekt het tijdelijk)": "Feste Zeiten, zu denen der Bildschirm aus ist (Tippen weckt ihn vorübergehend)",
+"van": "von",
+"tot": "bis",
+"Verwijderen": "Entfernen",
+"+ Tijdvak toevoegen": "+ Zeitraum hinzufügen",
+"Software-updates": "Software-Updates",
+"Via knop in Home Assistant": "Per Taste in Home Assistant",
+"Automatisch 's nachts": "Automatisch nachts",
+"Updates uit GitHub-repo (eigenaar/naam)": "Updates aus GitHub-Repo (Besitzer/Name)",
+"GitHub-token (alleen nodig bij een privé-repo)": "GitHub-Token (nur für ein privates Repo nötig)",
+"leeg laten bij een openbare repo": "bei einem öffentlichen Repo leer lassen",
+"Beveiligde modus (alleen-lezen): stroomuitval kan de SSD niet beschadigen": "Geschützter Modus (nur lesen): ein Stromausfall kann die SSD nicht beschädigen",
+"Optioneel. Laat Home Assistant het scherm aan en uit zetten met een bewegingssensor (bijvoorbeeld een PIR van het alarm), en stuur een melding naar je telefoon als het scherm offline gaat of te warm wordt.": "Optional. Lass Home Assistant den Bildschirm mit einem Bewegungsmelder (zum Beispiel einem PIR der Alarmanlage) ein- und ausschalten, und sende eine Meldung an dein Handy, wenn der Bildschirm offline geht oder zu warm wird.",
+"Om deze automatiseringen in Home Assistant aan te maken is een eenmalige login met een beheerder-account nodig. Het wachtwoord wordt niet bewaard. Wil je dit niet, ga dan gewoon verder.": "Um diese Automatisierungen in Home Assistant anzulegen, ist eine einmalige Anmeldung mit einem Administrator-Konto nötig. Das Passwort wird nicht gespeichert. Wenn du das nicht möchtest, mach einfach weiter.",
+"Gegevens ophalen uit Home Assistant…": "Daten aus Home Assistant abrufen…",
+"Scherm aan/uit met bewegingssensor": "Bildschirm ein/aus per Bewegungsmelder",
+"Geen (alleen aanraken)": "Keiner (nur Berührung)",
+"Meldingen naar": "Meldungen an",
+"Geen meldingen": "Keine Meldungen",
+"Scherm uit na zoveel minuten zonder beweging (0 = niet)": "Bildschirm aus nach so vielen Minuten ohne Bewegung (0 = nie)",
+"Klaar!": "Fertig!",
+"De instellingen zijn opgeslagen. Het scherm herstart de software en toont daarna het dashboard.": "Die Einstellungen wurden gespeichert. Der Bildschirm startet die Software neu und zeigt danach das Dashboard.",
+"Elke wijziging staat ook in <b>hasioscherm-wijzigingen.log</b> op de boot-partitie.": "Jede Änderung steht auch in <b>hasioscherm-wijzigingen.log</b> auf der Boot-Partition.",
+"Dit gaat er gebeuren. Er verandert niets totdat je op <b>Bevestigen</b> drukt.": "Das wird passieren. Nichts ändert sich, bis du auf <b>Bestätigen</b> drückst.",
+"Plan maken…": "Plan wird erstellt…",
+"Terug": "Zurück",
+"Sluiten": "Schließen",
+"Naar dashboard": "Zum Dashboard",
+"Bezig…": "Läuft…",
+"Volgende": "Weiter",
+"versie {0}": "Version {0}",
+"Verbinden…": "Verbinde…",
+"Verbonden met {0}": "Verbunden mit {0}",
+"Testen…": "Teste…",
+"Home Assistant gevonden op {0}": "Home Assistant gefunden unter {0}",
+"Er antwoordt iets op {0}, maar het lijkt geen Home Assistant.": "Unter {0} antwortet etwas, aber es scheint kein Home Assistant zu sein.",
+"Niet bereikbaar": "Nicht erreichbar",
+"Inloggen…": "Anmelden…",
+"Vul de code uit je authenticator-app in.": "Gib den Code aus deiner Authenticator-App ein.",
+"Kon instellingen niet laden: {0}": "Einstellungen konnten nicht geladen werden: {0}"
+}
+}/*EINDE*/;
+function t(nl, ...args) {
+  let s = (VERTALING[TAAL] || {})[nl] ?? nl;
+  args.forEach((a, i) => { s = s.split("{" + i + "}").join(a); });
+  return s;
+}
+function zetTaal(taal) {
+  TAAL = TALEN.some(([c]) => c === taal) ? taal : "nl";
+  S.taal = TAAL;
+  document.documentElement.lang = TAAL;
 }
 
 /* ---------------- toestand ---------------- */
 const S = {
+  taal: "nl",
   naam: "Scherm woonkamer", rotatie: 90, stijl: "auto", browser: "cog",
   ha_url: "", koppeling: "automatisch", ha_token: "",
   dashboard_url: "standaard",
@@ -137,15 +399,53 @@ const T = { ingelogd: false, mfa: false, haGegevens: null, haTest: null, setupKl
             netwerk: null, wifi: null, plan: null, bezig: false, melding: null };
 
 const STAPPEN = [
-  {id: "scherm", titel: "Scherm"},
-  {id: "netwerk", titel: "Netwerk"},
-  {id: "ha", titel: "Home Assistant"},
-  {id: "koppeling", titel: "Koppelen"},
-  {id: "gedrag", titel: "Gedrag"},
-  {id: "automatisch", titel: "Beweging & meldingen"},
-  {id: "overzicht", titel: "Overzicht"},
+  {id: "taal", titel: () => "Taal · Language"},
+  {id: "scherm", titel: () => t("Scherm")},
+  {id: "netwerk", titel: () => t("Netwerk")},
+  {id: "ha", titel: () => "Home Assistant"},
+  {id: "koppeling", titel: () => t("Koppelen")},
+  {id: "gedrag", titel: () => t("Gedrag")},
+  {id: "automatisch", titel: () => t("Beweging & meldingen")},
+  {id: "overzicht", titel: () => t("Overzicht")},
 ];
 let stap = 0;
+
+/* ---------------- scrollen met touch ---------------- */
+// De kioskbrowser scrolt niet altijd zelf bij vegen; daarom doen we het hier.
+// Een veeg van meer dan 10 px telt niet als tik.
+(() => {
+  let sc = null, startY = 0, startTop = 0, gesleept = false;
+  const scroller = el => {
+    for (let e = el; e && e !== document.body; e = e.parentElement) {
+      if ((e.classList?.contains("lijst") || e.id === "inhoud") && e.scrollHeight > e.clientHeight + 1) return e;
+    }
+    return null;
+  };
+  const begin = (el, y) => {
+    if (el.closest("#tb, input[type=range]")) { sc = null; return; }
+    sc = scroller(el); startY = y; startTop = sc ? sc.scrollTop : 0; gesleept = false;
+  };
+  const beweeg = (y, e) => {
+    if (!sc) return;
+    const dy = y - startY;
+    if (!gesleept && Math.abs(dy) < 10) return;
+    gesleept = true; sc.scrollTop = startTop - dy;
+    if (e.cancelable) e.preventDefault();
+  };
+  if ("ontouchstart" in window) {
+    document.addEventListener("touchstart", e => begin(e.target, e.touches[0].clientY), {passive: true});
+    document.addEventListener("touchmove", e => beweeg(e.touches[0].clientY, e), {passive: false});
+    document.addEventListener("touchend", () => { sc = null; }, {passive: true});
+  } else {
+    document.addEventListener("pointerdown", e => begin(e.target, e.clientY));
+    document.addEventListener("pointermove", e => { if (e.buttons) beweeg(e.clientY, e); });
+    document.addEventListener("pointerup", () => { sc = null; });
+  }
+  // Na een veeg de klik eruit filteren.
+  document.addEventListener("click", e => {
+    if (gesleept) { gesleept = false; e.stopPropagation(); e.preventDefault(); }
+  }, true);
+})();
 
 /* ---------------- toetsenbord ---------------- */
 const TB = { veld: null, modus: "abc", shift: false, toon: false };
@@ -163,8 +463,8 @@ function tbTeken() {
       const ch = r[i];
       if (ch === "⇧") toetsen.push(`<button class="breed" data-k="shift">${TB.shift ? "⇪" : "⇧"}</button>`);
       else if (ch === "⌫") toetsen.push(`<button class="breed" data-k="bs">⌫</button>`);
-      else if (ch === "␣") toetsen.push(`<button class="spatie" data-k=" ">spatie</button>`);
-      else if (ch === "✓") toetsen.push(`<button class="breed klaar" data-k="ok">Klaar</button>`);
+      else if (ch === "␣") toetsen.push(`<button class="spatie" data-k=" ">${t("spatie")}</button>`);
+      else if (ch === "✓") toetsen.push(`<button class="breed klaar" data-k="ok">${t("Klaar")}</button>`);
       else if (ch === "#" && TB.modus === "abc") toetsen.push(`<button class="breed" data-k="sym">#+=</button>`);
       else { const c = TB.shift ? ch.toUpperCase() : ch; toetsen.push(`<button data-k="${esc(c)}">${esc(c)}</button>`); }
     }
@@ -189,7 +489,7 @@ function tbVoorbeeld() {
   const geheim = TB.veld.type === "password";
   $("#tbvoorbeeld").textContent = geheim && !TB.toon ? "•".repeat(TB.veld.value.length) : TB.veld.value;
   if (geheim) $("#tbvoorbeeld").insertAdjacentHTML("beforeend",
-    `<button class="tbtoon" data-k="toon">${TB.toon ? "verberg" : "toon"}</button>`);
+    `<button class="tbtoon" data-k="toon">${TB.toon ? t("verberg") : t("toon")}</button>`);
 }
 $("#tbvoorbeeld").addEventListener("click", e => {
   if (e.target.closest(".tbtoon")) { TB.toon = !TB.toon; tbVoorbeeld(); e.stopPropagation(); }
@@ -215,15 +515,15 @@ document.addEventListener("pointerdown", e => {
 
 /* ---------------- bouwstenen ---------------- */
 function veld(label, pad, opts = {}) {
-  const waarde = pad.split(".").reduce((o, k) => o?.[k], S) ?? "";
+  const waarde = pad.startsWith("_") ? (T[pad] ?? "") : (pad.split(".").reduce((o, k) => o?.[k], S) ?? "");
   return `<div class="veld"><label>${esc(label)}</label>
     <input type="${opts.wachtwoord ? "password" : "text"}" inputmode="none" data-pad="${pad}"
       data-tb="${opts.tb || "abc"}" value="${esc(waarde)}" placeholder="${esc(opts.placeholder || "")}"></div>`;
 }
 function keuzes(label, pad, opties) {
   const w = pad.split(".").reduce((o, k) => o?.[k], S);
-  return `<div class="veld"><label>${esc(label)}</label><div class="keuzes">${opties.map(([v, t]) =>
-    `<button data-keuze="${pad}" data-waarde='${esc(JSON.stringify(v))}' class="${v === w ? "gekozen" : ""}">${esc(t)}</button>`).join("")}</div></div>`;
+  return `<div class="veld"><label>${esc(label)}</label><div class="keuzes">${opties.map(([v, tekst]) =>
+    `<button data-keuze="${pad}" data-waarde='${esc(JSON.stringify(v))}' class="${v === w ? "gekozen" : ""}">${esc(tekst)}</button>`).join("")}</div></div>`;
 }
 function schuif(label, pad, min, max, stapje, eenheid) {
   const w = pad.split(".").reduce((o, k) => o?.[k], S);
@@ -243,116 +543,127 @@ function zet(pad, waarde) {
 function melding() {
   return T.melding ? `<div class="melding ${T.melding.soort}">${esc(T.melding.tekst)}</div>` : "";
 }
+// Eenmalige admin-login (gebruikt bij automatisch koppelen en voor automatiseringen).
+function loginBlok() {
+  if (T.ingelogd) return `<div class="melding goed">${t("Ingelogd als beheerder.")}</div>`;
+  if (T.mfa) return `<div class="rij">${veld(t("Verificatiecode (MFA)"), "_mfa", {tb: "num"})}
+      <div class="veld" style="flex:0"><label>&nbsp;</label><button class="primair" id="mfa">${t("Bevestigen")}</button></div></div>`;
+  return `<div class="rij">${veld(t("Gebruikersnaam"), "_admin")}${veld(t("Wachtwoord"), "_adminww", {wachtwoord: true})}</div>
+      <button class="primair" id="login">${t("Inloggen")}</button>`;
+}
 
 /* ---------------- stappen ---------------- */
 const SCHERMEN = {
+  taal: () => `
+    <h2>${t("Kies je taal")}</h2>
+    <p class="uitleg">Kies je taal · Choose your language · Sprache wählen</p>
+    <div class="talen">${TALEN.map(([c, naam, vlag]) =>
+      `<button data-taal="${c}" class="${TAAL === c ? "gekozen" : ""}"><span class="vlag">${vlag}</span>${naam}</button>`).join("")}</div>`,
+
   scherm: () => `
-    <h2>Welkom</h2>
-    <p class="uitleg">Stel dit scherm in. Alles is later te wijzigen: houd <b>3 vingers 4 seconden</b> op het scherm, of gebruik de knop <b>Setup openen</b> in Home Assistant of ⚙ op het offline-scherm.</p>
-    ${veld("Naam van het scherm (zo heet het apparaat in Home Assistant)", "naam")}
-    ${keuzes("Stand", "rotatie", [[90, "Liggend"], [270, "Liggend (180° gedraaid)"], [0, "Staand"], [180, "Staand (ondersteboven)"]])}
-    ${keuzes("Stijl van het dashboard", "stijl", [["auto", "Automatisch dag/nacht"], ["donker", "Donker"], ["licht", "Licht"]])}
-    <div class="veld"><label>Dashboard</label><div class="keuzes">
-      <button data-dash="standaard" class="${S.dashboard_url === "standaard" ? "gekozen" : ""}">Standaard dashboard (meegeleverd)</button>
-      <button data-dash="eigen" class="${S.dashboard_url !== "standaard" ? "gekozen" : ""}">Eigen dashboard</button></div></div>
-    ${S.dashboard_url !== "standaard" ? veld("Eigen dashboard: pad op Home Assistant (bijv. /local/mijn/dash.html) of volledig adres", "dashboard_url") : `<p class="uitleg">Het standaard dashboard haalt zelf uit Home Assistant wat er is: weer, personen en per ruimte de lampen, schakelaars, klimaat en media.</p>`}
-    ${keuzes("Browser", "browser", [["cog", "Cog (licht, aanbevolen)"], ["chromium", "Chromium (terugvaloptie)"]])}`,
+    <h2>${t("Welkom")}</h2>
+    <p class="uitleg">${t("Stel dit scherm in. Alles is later te wijzigen: houd <b>3 vingers 4 seconden</b> op het scherm, of gebruik de knop <b>Setup openen</b> in Home Assistant of ⚙ op het offline-scherm.")}</p>
+    ${veld(t("Naam van het scherm (zo heet het apparaat in Home Assistant)"), "naam")}
+    ${keuzes(t("Stand"), "rotatie", [[90, t("Liggend")], [270, t("Liggend (180° gedraaid)")], [0, t("Staand")], [180, t("Staand (ondersteboven)")]])}
+    ${keuzes(t("Stijl van het dashboard"), "stijl", [["auto", t("Automatisch dag/nacht")], ["donker", t("Donker")], ["licht", t("Licht")]])}
+    <div class="veld"><label>${t("Dashboard")}</label><div class="keuzes">
+      <button data-dash="standaard" class="${S.dashboard_url === "standaard" ? "gekozen" : ""}">${t("Standaard dashboard (meegeleverd)")}</button>
+      <button data-dash="eigen" class="${S.dashboard_url !== "standaard" ? "gekozen" : ""}">${t("Eigen dashboard")}</button></div></div>
+    ${S.dashboard_url !== "standaard" ? veld(t("Eigen dashboard: pad op Home Assistant (bijv. /local/mijn/dash.html) of volledig adres"), "dashboard_url") : `<p class="uitleg">${t("Het standaard dashboard haalt zelf uit Home Assistant wat er is: weer, personen en per ruimte de lampen, schakelaars, klimaat en media.")}</p>`}
+    ${keuzes(t("Browser"), "browser", [["cog", t("Cog (licht, aanbevolen)")], ["chromium", t("Chromium (terugvaloptie)")]])}`,
 
   netwerk: () => {
     const n = T.netwerk;
     const app = n?.status?.apparaten || [];
     const kabel = app.find(a => a.soort === "ethernet" && a.status.startsWith("connected"));
     const wifi = T.wifi || [];
-    return `<h2>Netwerk</h2>
-      <p class="uitleg">${kabel ? "Er is een kabelverbinding (PoE). Wifi is niet nodig; je kunt deze stap overslaan." : "Geen kabelverbinding gevonden. Kies een wifi-netwerk."}</p>
-      <div class="melding info">IP-adres: <b>${esc(n?.status?.ip || "…")}</b> ${app.map(a => ` · ${esc(a.apparaat)}: ${esc(a.status)}${a.verbinding ? " (" + esc(a.verbinding) + ")" : ""}`).join("")}</div>
+    return `<h2>${t("Netwerk")}</h2>
+      <p class="uitleg">${kabel ? t("Er is een kabelverbinding (PoE). Wifi is niet nodig; je kunt deze stap overslaan.") : t("Geen kabelverbinding gevonden. Kies een wifi-netwerk.")}</p>
+      <div class="melding info">${t("IP-adres")}: <b>${esc(n?.status?.ip || "…")}</b> ${app.map(a => ` · ${esc(a.apparaat)}: ${esc(a.status)}${a.verbinding ? " (" + esc(a.verbinding) + ")" : ""}`).join("")}</div>
       ${melding()}
-      <div class="veld"><label>Wifi-netwerken</label><div class="lijst">
+      <div class="veld"><label>${t("Wifi-netwerken")}</label><div class="lijst">
         ${wifi.length ? wifi.map(w => `<button data-wifi="${esc(w.ssid)}" class="${T.wifiKeuze === w.ssid ? "gekozen" : ""}">
           <span>${esc(w.ssid)}</span><small>${w.signaal}% ${w.beveiligd ? "🔒" : ""}</small></button>`).join("")
-          : `<div class="melding info">Geen netwerken gevonden (of wifi niet beschikbaar).</div>`}
+          : `<div class="melding info">${t("Geen netwerken gevonden (of wifi niet beschikbaar).")}</div>`}
       </div></div>
-      ${T.wifiKeuze ? `<div class="rij">${veld("Wachtwoord voor " + T.wifiKeuze, "_wifiww", {wachtwoord: true})}
-        <div class="veld" style="flex:0"><label>&nbsp;</label><button class="primair" id="wifiverbind">Verbinden</button></div></div>` : ""}
-      <button id="wifiscan">Opnieuw zoeken</button>`;
+      ${T.wifiKeuze ? `<div class="rij">${veld(t("Wachtwoord voor {0}", T.wifiKeuze), "_wifiww", {wachtwoord: true})}
+        <div class="veld" style="flex:0"><label>&nbsp;</label><button class="primair" id="wifiverbind">${t("Verbinden")}</button></div></div>` : ""}
+      <button id="wifiscan">${t("Opnieuw zoeken")}</button>`;
   },
 
   ha: () => `
     <h2>Home Assistant</h2>
-    <p class="uitleg">Het adres van je Home Assistant in het lokale netwerk, bijvoorbeeld <b>192.168.1.10</b> (poort 8123 wordt automatisch toegevoegd).</p>
-    <div class="rij">${veld("Adres van Home Assistant", "ha_url", {placeholder: "192.168.1.10", tb: "abc"})}
-      <div class="veld" style="flex:0"><label>&nbsp;</label><button id="hatest">Testen</button></div></div>
+    <p class="uitleg">${t("Het adres van je Home Assistant in het lokale netwerk, bijvoorbeeld <b>192.168.1.10</b> (poort 8123 wordt automatisch toegevoegd).")}</p>
+    <div class="rij">${veld(t("Adres van Home Assistant"), "ha_url", {placeholder: "192.168.1.10", tb: "abc"})}
+      <div class="veld" style="flex:0"><label>&nbsp;</label><button id="hatest">${t("Testen")}</button></div></div>
     ${melding()}
-    ${keuzes("Hoe wil je koppelen?", "koppeling", [["automatisch", "Automatisch (eenmalige admin-login)"], ["handmatig", "Handmatig (MQTT-gegevens zelf invullen)"]])}
+    ${keuzes(t("Hoe wil je koppelen?"), "koppeling", [["automatisch", t("Automatisch (eenmalige admin-login)")], ["handmatig", t("Handmatig (MQTT-gegevens zelf invullen)")]])}
     <p class="uitleg">${S.koppeling === "automatisch"
-      ? "Automatisch: na een eenmalige admin-login maakt de wizard een eigen gebruiker en token voor dit scherm aan, en desgewenst automatiseringen. Je ziet eerst precies wat er gebeurt en moet dat bevestigen. Het admin-wachtwoord wordt niet bewaard."
-      : "Handmatig: je vult zelf de MQTT-gebruiker en eventueel een token in. Er wordt niets in Home Assistant aangemaakt."}</p>`,
+      ? t("Automatisch: na een eenmalige admin-login maakt de wizard een eigen gebruiker en token voor dit scherm aan, en desgewenst automatiseringen. Je ziet eerst precies wat er gebeurt en moet dat bevestigen. Het admin-wachtwoord wordt niet bewaard.")
+      : t("Handmatig: je vult zelf de MQTT-gebruiker en eventueel een token in. Automatiseringen kun je daarna nog laten aanmaken met een eenmalige admin-login.")}</p>`,
 
   koppeling: () => S.koppeling === "automatisch" ? `
-    <h2>Eenmalige admin-login</h2>
-    <p class="uitleg">Log in met een <b>beheerder</b>-account van Home Assistant. Dit wordt alleen gebruikt om de onderdelen in de volgende stappen aan te maken, en daarna vergeten.</p>
+    <h2>${t("Eenmalige admin-login")}</h2>
+    <p class="uitleg">${t("Log in met een <b>beheerder</b>-account van Home Assistant. Dit wordt alleen gebruikt om de onderdelen in de volgende stappen aan te maken, en daarna vergeten.")}</p>
     ${melding()}
-    ${T.ingelogd ? `<div class="melding goed">Ingelogd als beheerder. Ga verder.</div>` : T.mfa ? `
-      <div class="rij">${veld("Verificatiecode (MFA)", "_mfa", {tb: "num"})}
-      <div class="veld" style="flex:0"><label>&nbsp;</label><button class="primair" id="mfa">Bevestigen</button></div></div>` : `
-      <div class="rij">${veld("Gebruikersnaam", "_admin")}${veld("Wachtwoord", "_adminww", {wachtwoord: true})}</div>
-      <button class="primair" id="login">Inloggen</button>`}` : `
-    <h2>Handmatige koppeling</h2>
-    <p class="uitleg">De Mosquitto-add-on accepteert gewone Home Assistant-gebruikers. Maak bijvoorbeeld een gebruiker <b>hasioscherm</b> aan en vul die hier in.</p>
-    <div class="rij">${veld("MQTT-server", "mqtt.host", {placeholder: "zelfde als Home Assistant"})}${veld("Poort", "mqtt.port", {tb: "num"})}</div>
-    <div class="rij">${veld("MQTT-gebruiker", "mqtt.gebruiker")}${veld("MQTT-wachtwoord", "mqtt.wachtwoord", {wachtwoord: true, placeholder: T.mqttWwIngesteld ? "(ongewijzigd)" : ""})}</div>
-    ${veld("Home Assistant-token (optioneel, voor het dashboard)", "ha_token", {wachtwoord: true, placeholder: T.tokenIngesteld ? "(ongewijzigd)" : ""})}`,
+    ${loginBlok()}` : `
+    <h2>${t("Handmatige koppeling")}</h2>
+    <p class="uitleg">${t("De Mosquitto-add-on accepteert gewone Home Assistant-gebruikers. Maak bijvoorbeeld een gebruiker <b>hasioscherm</b> aan en vul die hier in.")}</p>
+    <div class="rij">${veld(t("MQTT-server"), "mqtt.host", {placeholder: t("zelfde als Home Assistant")})}${veld(t("Poort"), "mqtt.port", {tb: "num"})}</div>
+    <div class="rij">${veld(t("MQTT-gebruiker"), "mqtt.gebruiker")}${veld(t("MQTT-wachtwoord"), "mqtt.wachtwoord", {wachtwoord: true, placeholder: T.mqttWwIngesteld ? t("(ongewijzigd)") : ""})}</div>
+    ${veld(t("Home Assistant-token (optioneel, voor het dashboard)"), "ha_token", {wachtwoord: true, placeholder: T.tokenIngesteld ? t("(ongewijzigd)") : ""})}`,
 
   gedrag: () => `
-    <h2>Gedrag</h2>
-    <p class="uitleg">Wanneer het scherm uit en aan gaat, en hoe fel het is. Timeout en helderheid kun je later ook vanuit Home Assistant aanpassen.</p>
-    ${schuif("Scherm uit na zoveel minuten zonder aanraking (0 = nooit)", "gedrag.timeout_minuten", 0, 60, 1, "min")}
-    ${schakel("Eerste tik op een donker scherm alleen wekken", "gedrag.eerste_tik_alleen_wekken")}
-    <div class="rij">${schuif("Helderheid overdag", "gedrag.helderheid_dag", 5, 100, 5, "%")}${schuif("Helderheid 's nachts", "gedrag.helderheid_nacht", 1, 100, 1, "%")}</div>
-    <div class="rij">${veld("Dag begint (UU:MM)", "gedrag.dag_begint", {tb: "num"})}${veld("Nacht begint (UU:MM)", "gedrag.nacht_begint", {tb: "num"})}</div>
-    <div class="veld"><label>Vaste tijden waarop het scherm uit is (een tik wekt het tijdelijk)</label>
+    <h2>${t("Gedrag")}</h2>
+    <p class="uitleg">${t("Wanneer het scherm uit en aan gaat, en hoe fel het is. Timeout en helderheid kun je later ook vanuit Home Assistant aanpassen.")}</p>
+    ${schuif(t("Scherm uit na zoveel minuten zonder aanraking (0 = nooit)"), "gedrag.timeout_minuten", 0, 60, 1, "min")}
+    ${schakel(t("Eerste tik op een donker scherm alleen wekken"), "gedrag.eerste_tik_alleen_wekken")}
+    <div class="rij">${schuif(t("Helderheid overdag"), "gedrag.helderheid_dag", 5, 100, 5, "%")}${schuif(t("Helderheid 's nachts"), "gedrag.helderheid_nacht", 1, 100, 1, "%")}</div>
+    <div class="rij">${veld(t("Dag begint (UU:MM)"), "gedrag.dag_begint", {tb: "num"})}${veld(t("Nacht begint (UU:MM)"), "gedrag.nacht_begint", {tb: "num"})}</div>
+    <div class="veld"><label>${t("Vaste tijden waarop het scherm uit is (een tik wekt het tijdelijk)")}</label>
       ${S.gedrag.uit_tijden.map((u, i) => `<div class="tijdrij">
-        <span>van</span><input type="text" inputmode="none" data-tb="num" data-pad="gedrag.uit_tijden.${i}.van" value="${esc(u.van)}">
-        <span>tot</span><input type="text" inputmode="none" data-tb="num" data-pad="gedrag.uit_tijden.${i}.tot" value="${esc(u.tot)}">
-        <button data-uitweg="${i}">Verwijderen</button></div>`).join("")}
-      <button id="uitbij">+ Tijdvak toevoegen</button></div>
-    ${keuzes("Software-updates", "updates.modus", [["knop", "Via knop in Home Assistant"], ["automatisch", "Automatisch 's nachts"]])}
-    <div class="rij">${veld("Updates uit GitHub-repo (eigenaar/naam)", "updates.repo")}
-      ${veld("GitHub-token (alleen nodig bij een privé-repo)", "updates.token", {wachtwoord: true, placeholder: T.updTokenIngesteld ? "(ongewijzigd)" : "leeg laten bij een openbare repo"})}</div>
-    ${schakel("Beveiligde modus (alleen-lezen): stroomuitval kan de SSD niet beschadigen", "systeem.alleen_lezen")}`,
+        <span>${t("van")}</span><input type="text" inputmode="none" data-tb="num" data-pad="gedrag.uit_tijden.${i}.van" value="${esc(u.van)}">
+        <span>${t("tot")}</span><input type="text" inputmode="none" data-tb="num" data-pad="gedrag.uit_tijden.${i}.tot" value="${esc(u.tot)}">
+        <button data-uitweg="${i}">${t("Verwijderen")}</button></div>`).join("")}
+      <button id="uitbij">${t("+ Tijdvak toevoegen")}</button></div>
+    ${keuzes(t("Software-updates"), "updates.modus", [["knop", t("Via knop in Home Assistant")], ["automatisch", t("Automatisch 's nachts")]])}
+    <div class="rij">${veld(t("Updates uit GitHub-repo (eigenaar/naam)"), "updates.repo")}
+      ${veld(t("GitHub-token (alleen nodig bij een privé-repo)"), "updates.token", {wachtwoord: true, placeholder: T.updTokenIngesteld ? t("(ongewijzigd)") : t("leeg laten bij een openbare repo")})}</div>
+    ${schakel(t("Beveiligde modus (alleen-lezen): stroomuitval kan de SSD niet beschadigen"), "systeem.alleen_lezen")}`,
 
   automatisch: () => {
-    if (S.koppeling !== "automatisch") return `<h2>Beweging & meldingen</h2>
-      <p class="uitleg">Bij een handmatige koppeling maakt de wizard geen automatiseringen aan. Je kunt de blueprints uit de repo zelf importeren (map <b>blueprints</b>).</p>`;
+    const kop = `<h2>${t("Beweging & meldingen")}</h2>
+      <p class="uitleg">${t("Optioneel. Laat Home Assistant het scherm aan en uit zetten met een bewegingssensor (bijvoorbeeld een PIR van het alarm), en stuur een melding naar je telefoon als het scherm offline gaat of te warm wordt.")}</p>`;
+    if (!T.ingelogd) return kop + `
+      <div class="melding info">${t("Om deze automatiseringen in Home Assistant aan te maken is een eenmalige login met een beheerder-account nodig. Het wachtwoord wordt niet bewaard. Wil je dit niet, ga dan gewoon verder.")}</div>
+      ${melding()}${loginBlok()}`;
     const g = T.haGegevens;
-    if (!g) return `<h2>Beweging & meldingen</h2>${melding()}<p class="uitleg">Gegevens ophalen uit Home Assistant…</p>`;
-    return `<h2>Beweging & meldingen</h2>
-      <p class="uitleg">Optioneel. Kies een bewegingssensor (bijvoorbeeld een PIR van het alarm) die het scherm wekt, en een telefoon voor meldingen als het scherm offline gaat of te warm wordt.</p>
-      ${melding()}
+    if (!g) return kop + `${melding()}<p class="uitleg">${t("Gegevens ophalen uit Home Assistant…")}</p>`;
+    return kop + `${melding()}
       <div class="rij">
-        <div class="veld"><label>Bewegingssensor</label><div class="lijst">
-          <button data-sel="beweging.entiteit" data-waarde="" class="${!S.beweging.entiteit ? "gekozen" : ""}">Geen (alleen aanraken)</button>
+        <div class="veld"><label>${t("Scherm aan/uit met bewegingssensor")}</label><div class="lijst">
+          <button data-sel="beweging.entiteit" data-waarde="" class="${!S.beweging.entiteit ? "gekozen" : ""}">${t("Geen (alleen aanraken)")}</button>
           ${g.bewegingssensoren.map(b => `<button data-sel="beweging.entiteit" data-waarde="${esc(b.entity_id)}" class="${S.beweging.entiteit === b.entity_id ? "gekozen" : ""}">
             <span>${esc(b.naam)}</span><small>${esc(b.entity_id)}</small></button>`).join("")}
         </div></div>
-        <div class="veld"><label>Meldingen naar</label><div class="lijst">
-          <button data-sel="meldingen.notify_dienst" data-waarde="" class="${!S.meldingen.notify_dienst ? "gekozen" : ""}">Geen meldingen</button>
+        <div class="veld"><label>${t("Meldingen naar")}</label><div class="lijst">
+          <button data-sel="meldingen.notify_dienst" data-waarde="" class="${!S.meldingen.notify_dienst ? "gekozen" : ""}">${t("Geen meldingen")}</button>
           ${g.notify_diensten.map(n => `<button data-sel="meldingen.notify_dienst" data-waarde="${esc(n)}" class="${S.meldingen.notify_dienst === n ? "gekozen" : ""}">
             <span>${esc(n)}</span></button>`).join("")}
         </div></div>
       </div>
-      ${S.beweging.entiteit ? schuif("Scherm uit na zoveel minuten zonder beweging (0 = niet)", "beweging.uit_na_minuten", 0, 60, 1, "min") : ""}`;
+      ${S.beweging.entiteit ? schuif(t("Scherm uit na zoveel minuten zonder beweging (0 = niet)"), "beweging.uit_na_minuten", 0, 60, 1, "min") : ""}`;
   },
 
   overzicht: () => {
-    if (T.klaar) return `<h2>Klaar!</h2>
-      <div class="melding goed">De instellingen zijn opgeslagen. Het scherm herstart de software en toont daarna het dashboard.</div>
-      <ol class="plan">${T.klaar.map(t => `<li class="gedaan">✓ ${esc(t)}</li>`).join("")}</ol>
-      <p class="uitleg">Elke wijziging staat ook in <b>hasioscherm-wijzigingen.log</b> op de boot-partitie.</p>`;
-    return `<h2>Overzicht</h2>
-      <p class="uitleg">Dit gaat er gebeuren. Er verandert niets totdat je op <b>Bevestigen</b> drukt.</p>
+    if (T.klaar) return `<h2>${t("Klaar!")}</h2>
+      <div class="melding goed">${t("De instellingen zijn opgeslagen. Het scherm herstart de software en toont daarna het dashboard.")}</div>
+      <ol class="plan">${T.klaar.map(x => `<li class="gedaan">✓ ${esc(x)}</li>`).join("")}</ol>
+      <p class="uitleg">${t("Elke wijziging staat ook in <b>hasioscherm-wijzigingen.log</b> op de boot-partitie.")}</p>`;
+    return `<h2>${t("Overzicht")}</h2>
+      <p class="uitleg">${t("Dit gaat er gebeuren. Er verandert niets totdat je op <b>Bevestigen</b> drukt.")}</p>
       ${melding()}
-      ${T.plan ? `<ol class="plan">${T.plan.map(t => `<li>${esc(t)}</li>`).join("")}</ol>` : "<p>Plan maken…</p>"}`;
+      ${T.plan ? `<ol class="plan">${T.plan.map(x => `<li>${esc(x)}</li>`).join("")}</ol>` : `<p>${t("Plan maken…")}</p>`}`;
   },
 };
 
@@ -361,7 +672,7 @@ async function bijBinnenkomst(id) {
   T.melding = null;
   try {
     if (id === "netwerk" && !T.netwerk) { T.netwerk = await api("wifi"); T.wifi = T.netwerk.netwerken; teken(); }
-    if (id === "automatisch" && S.koppeling === "automatisch" && !T.haGegevens) {
+    if (id === "automatisch" && T.ingelogd && !T.haGegevens) {
       T.haGegevens = await api("ha/gegevens"); teken();
     }
     if (id === "overzicht" && !T.klaar) { T.plan = null; teken(); T.plan = (await api("plan", S)).stappen; teken(); }
@@ -380,13 +691,21 @@ function magVerder(id) {
 function teken() {
   const id = STAPPEN[stap].id;
   $("#stappenlijst").innerHTML = STAPPEN.map((s, i) =>
-    `<li class="${i === stap ? "actief" : i < stap ? "klaar" : ""}">${esc(s.titel)}</li>`).join("");
-  $("#inhoud").innerHTML = SCHERMEN[id]();
+    `<li class="${i === stap ? "actief" : i < stap ? "klaar" : ""}">${esc(s.titel())}</li>`).join("");
+  const inhoud = $("#inhoud");
+  const zelfdeStap = inhoud.dataset.stap === id;
+  const top = inhoud.scrollTop;
+  inhoud.innerHTML = SCHERMEN[id]();
+  inhoud.dataset.stap = id;
+  inhoud.scrollTop = zelfdeStap ? top : 0;
+  $("#terug").textContent = t("Terug");
+  $("#sluiten").textContent = t("Sluiten");
   $("#terug").style.visibility = stap === 0 || T.klaar ? "hidden" : "visible";
   $("#sluiten").style.display = T.setupKlaar && !T.klaar ? "" : "none";
   const v = $("#verder");
-  v.textContent = T.klaar ? "Naar dashboard" : id === "overzicht" ? (T.bezig ? "Bezig…" : "Bevestigen") : "Volgende";
+  v.textContent = T.klaar ? t("Naar dashboard") : id === "overzicht" ? (T.bezig ? t("Bezig…") : t("Bevestigen")) : t("Volgende");
   v.disabled = !T.klaar && !magVerder(id);
+  $("#versie").textContent = T.versie ? t("versie {0}", T.versie) : "setup";
 }
 
 /* ---------------- invoer ---------------- */
@@ -405,6 +724,7 @@ document.addEventListener("input", e => {
 document.addEventListener("click", async e => {
   const b = e.target.closest("button, .schakel"); if (!b || b.closest("#tb")) return;
   try {
+    if (b.dataset.taal) { zetTaal(b.dataset.taal); return teken(); }
     if (b.dataset.keuze) { zet(b.dataset.keuze, JSON.parse(b.dataset.waarde)); T.melding = null; return teken(); }
     if (b.dataset.sel !== undefined) { zet(b.dataset.sel, b.dataset.waarde); return teken(); }
     if (b.dataset.schakel) { const p = b.dataset.schakel; zet(p, !p.split(".").reduce((o, k) => o[k], S)); return teken(); }
@@ -415,29 +735,33 @@ document.addEventListener("click", async e => {
       case "uitbij": S.gedrag.uit_tijden.push({van: "23:30", tot: "06:30"}); return teken();
       case "wifiscan": T.netwerk = null; T.wifi = null; teken(); return bijBinnenkomst("netwerk");
       case "wifiverbind": {
-        b.disabled = true; b.textContent = "Verbinden…";
+        b.disabled = true; b.textContent = t("Verbinden…");
         const r = await api("wifi", {ssid: T.wifiKeuze, wachtwoord: T._wifiww || ""});
-        T.netwerk.status = r.status; T.melding = {soort: "goed", tekst: "Verbonden met " + T.wifiKeuze}; return teken();
+        T.netwerk.status = r.status; T.melding = {soort: "goed", tekst: t("Verbonden met {0}", T.wifiKeuze)}; return teken();
       }
       case "hatest": {
-        b.disabled = true; b.textContent = "Testen…";
+        b.disabled = true; b.textContent = t("Testen…");
         const r = await api("ha/test", {url: S.ha_url});
         if (r.url) S.ha_url = r.url;
-        T.melding = r.home_assistant ? {soort: "goed", tekst: "Home Assistant gevonden op " + r.url}
-          : r.bereikbaar ? {soort: "fout", tekst: "Er antwoordt iets op " + r.url + ", maar het lijkt geen Home Assistant."}
-          : {soort: "fout", tekst: r.melding || "Niet bereikbaar"};
+        T.melding = r.home_assistant ? {soort: "goed", tekst: t("Home Assistant gevonden op {0}", r.url)}
+          : r.bereikbaar ? {soort: "fout", tekst: t("Er antwoordt iets op {0}, maar het lijkt geen Home Assistant.", r.url)}
+          : {soort: "fout", tekst: r.melding || t("Niet bereikbaar")};
         return teken();
       }
       case "login": {
-        b.disabled = true; b.textContent = "Inloggen…";
+        b.disabled = true; b.textContent = t("Inloggen…");
         const r = await api("ha/login", {url: S.ha_url, gebruiker: T._admin || "", wachtwoord: T._adminww || ""});
         T._adminww = ""; T.mfa = !!r.mfa; T.ingelogd = !!r.ok; T.haGegevens = null;
-        T.melding = r.mfa ? {soort: "info", tekst: "Vul de code uit je authenticator-app in."} : null;
-        return teken();
+        T.melding = r.mfa ? {soort: "info", tekst: t("Vul de code uit je authenticator-app in.")} : null;
+        teken();
+        if (T.ingelogd) bijBinnenkomst(STAPPEN[stap].id);
+        return;
       }
       case "mfa": {
         const r = await api("ha/mfa", {code: T._mfa || ""});
-        T.mfa = !!r.mfa; T.ingelogd = !!r.ok; T.melding = null; return teken();
+        T.mfa = !!r.mfa; T.ingelogd = !!r.ok; T.melding = null; teken();
+        if (T.ingelogd) bijBinnenkomst(STAPPEN[stap].id);
+        return;
       }
     }
   } catch (err) {
@@ -466,7 +790,8 @@ $("#verder").onclick = async () => {
 (async () => {
   try {
     const h = await api("huidig");
-    $("#versie").textContent = "versie " + h.versie;
+    T.versie = h.versie;
+    zetTaal(h.taal || "nl");
     T.setupKlaar = h.setup_klaar; T.mqttWwIngesteld = h.mqtt.wachtwoord_ingesteld; T.tokenIngesteld = h.ha_token_ingesteld;
     Object.assign(S, {naam: h.naam, rotatie: h.rotatie, stijl: h.stijl, browser: h.browser,
       dashboard_url: h.dashboard_url, koppeling: h.koppeling,
@@ -476,7 +801,7 @@ $("#verder").onclick = async () => {
     T.updTokenIngesteld = !!h.updates.token_ingesteld;
     S.mqtt = {host: h.mqtt.host, port: h.mqtt.port, gebruiker: h.mqtt.gebruiker, wachtwoord: ""};
     S.gedrag.timeout_minuten = Number(S.gedrag.timeout_minuten);
-  } catch (e) { T.melding = {soort: "fout", tekst: "Kon instellingen niet laden: " + e.message}; }
+  } catch (e) { T.melding = {soort: "fout", tekst: t("Kon instellingen niet laden: {0}", e.message)}; }
   teken();
 })();
 </script>

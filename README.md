@@ -31,8 +31,11 @@ gebouwd om nooit SSH nodig te hebben.
 
 - **cog** is een lichte browser (WPE WebKit). Mocht je dashboard daarin niet
   goed werken, zet dan `dashboard.browser: chromium`.
-- Bij het opstarten en als Home Assistant wegvalt, toont het scherm een
-  **offline-pagina met klok**. Die gaat vanzelf terug zodra HA bereikbaar is.
+- Bij het opstarten toont het scherm het **Bdlsoft-logo met een laadbalk**,
+  eerst als opstartscherm (Plymouth, draait mee met de stand uit de setup) en
+  daarna in de browser tot het dashboard er is. Valt Home Assistant weg, dan
+  verschijnt dezelfde pagina met een klok; die gaat vanzelf terug zodra HA
+  bereikbaar is.
 - Als het scherm donker is, **wekt de eerste tik alleen het scherm**. De tik gaat
   niet door naar het dashboard, zodat je niet per ongeluk een lamp schakelt.
 - **Bewaking op drie niveaus:** systemd herstart de agent en de browser, de agent
@@ -53,21 +56,24 @@ schermtoetsenbord. Daarna is hij **altijd** weer te openen:
 
 De wizard doorloopt:
 
-1. **Scherm**: naam, stand, stijl, dashboard (standaard of eigen) en browser.
-2. **Netwerk**: status van de kabel (PoE), of kies een wifi-netwerk.
-3. **Home Assistant**: adres + test. Kies dan *automatisch* of *handmatig*
+1. **Taal**: Nederlands, English of Deutsch (setup, opstartscherm en
+   standaard dashboard).
+2. **Scherm**: naam, stand, stijl, dashboard (standaard of eigen) en browser.
+3. **Netwerk**: status van de kabel (PoE), of kies een wifi-netwerk.
+4. **Home Assistant**: adres + test. Kies dan *automatisch* of *handmatig*
    koppelen.
-4. **Koppelen**:
+5. **Koppelen**:
    - *Automatisch*: eenmalige admin-login (MFA wordt ondersteund). Het
      admin-token blijft alleen in het geheugen en wordt na de setup vergeten.
    - *Handmatig*: zelf MQTT-gebruiker/wachtwoord (en eventueel een token)
      invullen.
-5. **Gedrag**: timeout, eerste tik alleen wekken, helderheid dag/nacht,
+6. **Gedrag**: timeout, eerste tik alleen wekken, helderheid dag/nacht,
    vaste uit-tijden, updates (modus, repo, eventueel token) en beveiligde modus.
-6. **Beweging & meldingen** (alleen bij automatisch): kies een
-   bewegingssensor (bijvoorbeeld de PIR van het alarm) en een telefoon voor
-   meldingen.
-7. **Overzicht**: de wizard laat **precies zien wat er gaat gebeuren**. Pas na
+7. **Beweging & meldingen**: laat Home Assistant het scherm aan/uit zetten
+   met een bewegingssensor (bijvoorbeeld de PIR van het alarm) en kies een
+   telefoon voor meldingen. Werkt bij beide koppelingen; bij *handmatig*
+   vraagt deze stap om een eenmalige admin-login.
+8. **Overzicht**: de wizard laat **precies zien wat er gaat gebeuren**. Pas na
    *Bevestigen* wordt het uitgevoerd.
 
 Bij *automatisch* maakt de wizard in Home Assistant aan:

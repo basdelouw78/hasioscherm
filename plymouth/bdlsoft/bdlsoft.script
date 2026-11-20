@@ -1,0 +1,104 @@
+# Bdlsoft-opstartscherm voor hasioscherm (Plymouth script-thema).
+# Het Touch Display 2 is van zichzelf staand (1200x1920); het scherm hangt
+# liggend. De regel hieronder wordt door hasioscherm aangepast aan de
+# rotatie uit de setup (0, 90, 180 of 270).
+rotatie = 90; # HASIOSCHERM_ROTATIE
+
+Window.SetBackgroundTopColor(0.055, 0.067, 0.086);
+Window.SetBackgroundBottomColor(0.055, 0.067, 0.086);
+
+PW = Window.GetWidth();
+PH = Window.GetHeight();
+
+# Is het paneel al liggend (de kernel draait zelf), dan niets draaien.
+if (PW > PH && (rotatie == 90 || rotatie == 270)) rot = 0;
+else rot = rotatie;
+
+if (rot == 90 || rot == 270) { LW = PH; LH = PW; }
+else { LW = PW; LH = PH; }
+
+# Logische (rechtop) coordinaten -> paneelcoordinaten.
+fun px(lx, ly) {
+  if (rot == 90) return PW - ly;
+  if (rot == 270) return ly;
+  if (rot == 180) return PW - lx;
+  return lx;
+}
+fun py(lx, ly) {
+  if (rot == 90) return lx;
+  if (rot == 270) return PH - lx;
+  if (rot == 180) return PH - ly;
+  return ly;
+}
+fun klein(a, b) { if (a < b) return a; return b; }
+
+# Zet een sprite op een logische rechthoek (lx, ly, lw, lh).
+fun plaats(sprite, lx, ly, lw, lh) {
+  sprite.SetX(klein(px(lx, ly), px(lx + lw, ly + lh)));
+  sprite.SetY(klein(py(lx, ly), py(lx + lw, ly + lh)));
+}
+
+# ---- logo ----
+if (rot == 90) logo_img = Image("logo-90.png");
+else if (rot == 180) logo_img = Image("logo-180.png");
+else if (rot == 270) logo_img = Image("logo-270.png");
+else logo_img = Image("logo-0.png");
+LOGO_W = 900; LOGO_H = 261;
+logo = Sprite(logo_img);
+logo_x = (LW - LOGO_W) / 2;
+logo_y = LH * 0.42 - LOGO_H / 2;
+plaats(logo, logo_x, logo_y, LOGO_W, LOGO_H);
+logo.SetZ(10);
+
+# ---- laadbalk ----
+BALK_W = 520; BALK_H = 8;
+balk_x = (LW - BALK_W) / 2;
+balk_y = logo_y + LOGO_H + 90;
+
+spoor_bron = Image("spoor.png");
+balk_bron = Image("balk.png");
+
+fun maat(lw, lh) {
+  # geeft het image voor een logische maat (gedraaid voor 90/270)
+  m.w = lw; m.h = lh;
+  if (rot == 90 || rot == 270) { m.w = lh; m.h = lw; }
+  return m;
+}
+
+m = maat(BALK_W, BALK_H);
+spoor = Sprite(spoor_bron.Scale(m.w, m.h));
+plaats(spoor, balk_x, balk_y, BALK_W, BALK_H);
+spoor.SetZ(10);
+
+balk = Sprite();
+balk.SetZ(11);
+
+echt = 0;
+tijd = 0;
+fun toon_voortgang() {
+  # Echte voortgang van Plymouth, aangevuld met een rustig oplopende balk.
+  nep = tijd / (tijd + 6);
+  p = echt;
+  if (nep > p) p = nep;
+  if (p > 0.97) p = 0.97;
+  breedte = Math.Int(BALK_W * p);
+  if (breedte < 2) breedte = 2;
+  m = maat(breedte, BALK_H);
+  balk.SetImage(balk_bron.Scale(m.w, m.h));
+  # Bij 90/180/270 groeit de balk op het paneel de andere kant op; de
+  # logische linkerkant blijft vast.
+  plaats(balk, balk_x, balk_y, breedte, BALK_H);
+}
+
+fun bij_voortgang(duur, voortgang) {
+  global.echt = voortgang;
+}
+Plymouth.SetBootProgressFunction(bij_voortgang);
+
+fun bij_verversen() {
+  global.tijd = tijd + 1 / 50;
+  toon_voortgang();
+}
+Plymouth.SetRefreshFunction(bij_verversen);
+
+toon_voortgang();

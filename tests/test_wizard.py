@@ -125,7 +125,25 @@ with sync_playwright() as pw:
     page.goto("http://127.0.0.1:18842/offline.html")
     page.wait_for_url("**/setup/index.html", timeout=10000)
     check(True, "offline-pagina stuurt door naar setup")
+
+    def knop_zichtbaar(stapnaam):
+        bb = page.locator("#verder").bounding_box()
+        check(bb is not None and bb["y"] + bb["height"] <= 1200, f"Volgende-knop zichtbaar ({stapnaam})")
+
+    # taalstap eerst
+    page.wait_for_selector("button[data-taal=en]")
+    page.click("button[data-taal=en]")
+    page.wait_for_selector("text=Choose your language")
+    check(page.inner_text("#verder") == "Next", "taal wisselt direct (Engels)")
+    page.click("button[data-taal=de]")
+    check(page.inner_text("#verder") == "Weiter", "taal wisselt direct (Duits)")
+    page.click("button[data-taal=nl]")
+    check(page.locator("nav img.logo").count() == 1, "Bdlsoft-logo in de setup")
+    page.screenshot(path=str(SHOTS / "0-taal.png"))
+    knop_zichtbaar("taal")
+    page.click("#verder")                       # -> scherm
     page.wait_for_selector("input[data-pad=naam]")
+    knop_zichtbaar("scherm")
 
     wis(page, "input[data-pad=naam]")
     typ(page, "input[data-pad=naam]", "Scherm woonkamer")
@@ -149,6 +167,12 @@ with sync_playwright() as pw:
     page.wait_for_selector("text=Ingelogd als beheerder")
     page.click("#verder")                       # -> gedrag
     page.click("#uitbij")
+    knop_zichtbaar("gedrag")
+    inh = page.evaluate("(() => { const e = document.getElementById('inhoud'); return [e.scrollHeight, e.clientHeight]; })()")
+    if inh[0] > inh[1]:
+        # vegen met de muis moet de inhoud laten scrollen
+        page.mouse.move(1100, 900); page.mouse.down(); page.mouse.move(1100, 500, steps=8); page.mouse.up()
+        check(page.evaluate("document.getElementById('inhoud').scrollTop") > 100, "inhoud scrolt bij vegen")
     page.screenshot(path=str(SHOTS / "5-gedrag.png"))
     page.click("#verder")                       # -> beweging & meldingen
     page.wait_for_selector("text=PIR woonkamer (alarm)")

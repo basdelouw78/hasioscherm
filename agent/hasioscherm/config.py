@@ -19,6 +19,8 @@ CONFIG_PATHS = [
     Path("/etc/hasioscherm/hasioscherm.yaml"),
 ]
 STATE_PATH = Path(os.environ.get("HASIOSCHERM_STATE", "/var/lib/hasioscherm/state.json"))
+TALEN = ("nl", "en", "de")
+
 LOCAL_URL = "http://127.0.0.1:" + os.environ.get("HASIOSCHERM_LOCAL_PORT", "8099")
 STANDAARD_DASHBOARD = LOCAL_URL + "/dashboard/index.html"
 
@@ -41,6 +43,7 @@ class Config:
     id: str = ""
     rotatie: int = 90
     touch_draaiing: str = "auto"
+    taal: str = "nl"
     ha_url: str = ""
     dashboard_url: str = "standaard"   # "standaard" = meegeleverd dashboard op het scherm zelf
     browser: str = "cog"
@@ -139,6 +142,9 @@ def load_config() -> Config:
     c.id = str(_get(raw, "scherm", "id", default="") or "")
     c.rotatie = int(_get(raw, "scherm", "rotatie", default=c.rotatie))
     c.touch_draaiing = str(_get(raw, "scherm", "touch_draaiing", default=c.touch_draaiing))
+    c.taal = str(_get(raw, "scherm", "taal", default=c.taal))
+    if c.taal not in TALEN:
+        c.taal = "nl"
     c.ha_url = str(_get(raw, "homeassistant", "url", default=c.ha_url))
     c.dashboard_url = str(_get(raw, "dashboard", "url", default=c.dashboard_url))
     c.browser = str(_get(raw, "dashboard", "browser", default=c.browser))

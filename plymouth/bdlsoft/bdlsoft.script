@@ -3,6 +3,7 @@
 # liggend. De regel hieronder wordt door hasioscherm aangepast aan de
 # rotatie uit de setup (0, 90, 180 of 270).
 rotatie = 90; # HASIOSCHERM_ROTATIE
+versie = "v0.0.0"; # HASIOSCHERM_VERSIE
 
 Window.SetBackgroundTopColor(0.055, 0.067, 0.086);
 Window.SetBackgroundBottomColor(0.055, 0.067, 0.086);
@@ -54,6 +55,21 @@ logo_x = (LW - LOGO_W) / 2;
 logo_y = LH * 0.42 - LOGO_H / 2;
 plaats(logo, logo_x, logo_y, LOGO_W, LOGO_H);
 logo.SetZ(10);
+
+# ---- versienummer klein onderin (eigen tekens: geen lettertype nodig) ----
+TEKEN_W = 18; TEKEN_H = 34;
+fun teken_naam(c) {
+  if (c == ".") return "punt";
+  return c;
+}
+v_x = (LW - versie.Length() * TEKEN_W) / 2;
+v_y = LH - 70;
+for (i = 0; i < versie.Length(); i++) {
+  c = versie.CharAt(i);
+  tekens[i] = Sprite(Image("t-" + teken_naam(c) + "-" + rot + ".png"));
+  plaats(tekens[i], v_x + i * TEKEN_W, v_y, TEKEN_W, TEKEN_H);
+  tekens[i].SetZ(10);
+}
 
 # ---- laadbalk ----
 BALK_W = 520; BALK_H = 8;

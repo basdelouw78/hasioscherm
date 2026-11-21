@@ -18,6 +18,9 @@
   #tijd { font-size: 6vh; font-weight: 300; font-variant-numeric: tabular-nums; color: #e6e8eb; line-height: 1; }
   #datum { font-size: 2.2vh; margin-top: .6vh; }
   #naam { position: fixed; bottom: 2vh; right: 3vh; font-size: 2vh; color: #4b5560; }
+  /* zelfde plek en stijl als op het opstartscherm */
+  #versie { position: fixed; left: 0; right: 0; bottom: 36px; text-align: center; color: #6b7480;
+    font: 26px "DejaVu Sans Mono", monospace; letter-spacing: 0; }
   #instellingen { position: fixed; bottom: 2vh; left: 3vh; font-size: 2.2vh; color: #9aa3ad;
     background: #1a1f27; border: 1px solid #2a313b; border-radius: 1.2vh; padding: 1.4vh 2.4vh;
     text-decoration: none; }
@@ -31,6 +34,7 @@
 </main>
 <div id="klok"><div id="tijd">--:--</div><div id="datum"></div></div>
 <div id="naam"></div>
+<div id="versie"></div>
 <a id="instellingen" href="/setup/index.html">⚙ <span id="inst-tekst">Instellingen</span></a>
 <script>
   // Opstart- en offline-scherm. Toont het Bdlsoft-logo met een laadbalk,
@@ -79,7 +83,8 @@
       const r = await fetch("/api/status", { cache: "no-store" });
       const s = await r.json();
       taal(s.taal);
-      if (s.naam) $("naam").textContent = s.naam + " · v" + s.versie;
+      if (s.naam) $("naam").textContent = s.naam;
+      if (s.versie) $("versie").textContent = "v" + s.versie;
       if (s.setup_nodig) { balk(true); setTimeout(() => location.replace("/setup/index.html"), 300); return; }
       if (!target) target = s.dashboard;
       if (s.ha_bereikbaar && target) {

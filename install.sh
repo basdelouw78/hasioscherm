@@ -92,20 +92,37 @@ if [ "$UPDATE_ONLY" -eq 0 ]; then
   systemctl set-default graphical.target
   systemctl disable getty@tty1.service || true
 
-  if [ -f "$BOOT/config.txt" ]; then
-    log "config.txt aanvullen"
-    grep -q '^dtparam=watchdog=on' "$BOOT/config.txt" || echo 'dtparam=watchdog=on' >> "$BOOT/config.txt"
-    # Touch Display 2 wordt automatisch herkend (display_auto_detect=1).
-    grep -q '^display_auto_detect=1' "$BOOT/config.txt" || echo 'display_auto_detect=1' >> "$BOOT/config.txt"
+fi
+
+# Opstarten zonder Linux-tekst: alleen het Bdlsoft-logo. Ook bij --update,
+# zodat bestaande schermen dit via een update krijgen (alles idempotent).
+if [ -f "$BOOT/config.txt" ]; then
+  log "config.txt aanvullen"
+  grep -q '^dtparam=watchdog=on' "$BOOT/config.txt" || echo 'dtparam=watchdog=on' >> "$BOOT/config.txt"
+  # Touch Display 2 wordt automatisch herkend (display_auto_detect=1).
+  grep -q '^display_auto_detect=1' "$BOOT/config.txt" || echo 'display_auto_detect=1' >> "$BOOT/config.txt"
+  # geen regenboogscherm van de firmware
+  grep -q '^disable_splash=1' "$BOOT/config.txt" || echo 'disable_splash=1' >> "$BOOT/config.txt"
+fi
+if [ -f "$BOOT/cmdline.txt" ]; then
+  CMD="$(head -n1 "$BOOT/cmdline.txt")"
+  NIEUW_CMD="$CMD"
+  # Kernel- en systemd-meldingen naar tty3 i.p.v. het scherm (tty1).
+  NIEUW_CMD="$(echo "$NIEUW_CMD" | sed -E 's/(^| )console=tty1( |$)/\1console=tty3\2/')"
+  for optie in quiet loglevel=3 logo.nologo vt.global_cursor_default=0 splash \
+               plymouth.ignore-serial-consoles systemd.show_status=false \
+               rd.udev.log_level=3 udev.log_priority=3 rd.systemd.show_status=false; do
+    case " $NIEUW_CMD " in *" $optie "*) ;; *) NIEUW_CMD="$NIEUW_CMD $optie" ;; esac
+  done
+  if [ "$NIEUW_CMD" != "$CMD" ]; then
+    log "Stille opstart: alleen het logo, geen Linux-tekst"
+    printf '%s\n' "$NIEUW_CMD" > "$BOOT/cmdline.txt"
   fi
-  if [ -f "$BOOT/cmdline.txt" ] && ! grep -q 'vt.global_cursor_default=0' "$BOOT/cmdline.txt"; then
-    log "Stille opstart (geen cursor/logo)"
-    sed -i '1 s/$/ quiet loglevel=3 logo.nologo vt.global_cursor_default=0/' "$BOOT/cmdline.txt"
-  fi
-  if [ -f "$BOOT/cmdline.txt" ] && ! grep -qw 'splash' "$BOOT/cmdline.txt"; then
-    log "Opstartscherm aanzetten (Plymouth)"
-    sed -i '1 s/$/ splash plymouth.ignore-serial-consoles/' "$BOOT/cmdline.txt"
-  fi
+fi
+# cloud-init schrijft anders meldingen naar het scherm
+if [ -d /etc/cloud ]; then
+  mkdir -p /etc/cloud/cloud.cfg.d
+  printf 'output: {all: ">> /var/log/cloud-init-output.log"}\n' > /etc/cloud/cloud.cfg.d/99-hasioscherm.cfg
 fi
 
 # Bdlsoft-opstartscherm (Plymouth). Ook bij --update bijwerken.
@@ -114,6 +131,8 @@ if command -v plymouth-set-default-theme >/dev/null; then
   THEMA=/usr/share/plymouth/themes/bdlsoft
   mkdir -p "$THEMA"
   cp "$DEST"/plymouth/bdlsoft/* "$THEMA"/
+  VERSIE="$(grep -o '[0-9][0-9.]*' "$DEST/agent/hasioscherm/__init__.py" | head -n1)"
+  sed -i "s/^versie = .*/versie = \"v$VERSIE\"; # HASIOSCHERM_VERSIE/" "$THEMA/bdlsoft.script"
   "$DEST/kiosk/touch-kalibratie.sh" --alleen-thema --geen-initramfs || true
   plymouth-set-default-theme bdlsoft || true
   if command -v update-initramfs >/dev/null; then

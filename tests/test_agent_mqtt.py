@@ -124,5 +124,11 @@ check(not resets and any("reset=1" in u for u in nav), "1x drukken: alleen beves
 c.publish("hasioscherm/scherm_woonkamer/fabrieksreset/set", "PRESS"); time.sleep(1)
 check(len(resets) == 1, "2x drukken binnen 60 s: reset")
 
+# diagnose-sensor
+a.publish_diagnose(); time.sleep(1)
+d = msgs.get("hasioscherm/scherm_woonkamer/diagnose")
+check(d is not None and all(k in json.loads(d) for k in ("agent", "kiosk", "update", "versie")), "diagnose met logregels gepubliceerd")
+check(any(t.endswith("/diagnose/config") for t in msgs), "sensor Diagnose in discovery")
+
 print("\nResultaat:", "ALLES OK" if not fails else f"{len(fails)} fout(en)")
 sys.exit(1 if fails else 0)

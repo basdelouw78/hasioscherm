@@ -48,8 +48,35 @@ if [ -n "$TOKEN" ]; then
   export GIT_CONFIG_VALUE_0="Authorization: Basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
 fi
 
-if git fetch --depth 1 origin "refs/tags/$TAG:refs/tags/$TAG" \
-   && git -c advice.detachedHead=false checkout --force "$TAG"; then
+# Repo uit de config; remote altijd zonder inloggegevens.
+REPO="$(python3 -c 'import sys,yaml; print(((yaml.safe_load(open(sys.argv[1])) or {}).get("updates") or {}).get("repo") or "basdelouw78/hasioscherm")' "$CONFIG" 2>/dev/null)"
+[ -n "$REPO" ] || REPO=basdelouw78/hasioscherm
+git remote set-url origin "https://github.com/$REPO.git" 2>/dev/null || git remote add origin "https://github.com/$REPO.git"
+# Images t/m 0.7.4 bevatten een (verlopen) inlogregel van de GitHub-build in
+# .git/config; GitHub weigert dan ook een openbare repo. Weghalen.
+git config --local --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+git config --local --unset-all includeIf.gitdir:/github/workspace/.git.path 2>/dev/null || true
+
+# Na een herstart is het netwerk er soms nog niet: maximaal 3 minuten wachten.
+for i in $(seq 1 36); do
+  if git ls-remote --exit-code origin "refs/tags/$TAG" >/dev/null 2>&1; then
+    echo "GitHub bereikbaar, tag $TAG gevonden (poging $i)"
+    break
+  fi
+  [ "$i" -eq 1 ] && echo "wachten op netwerk/GitHub…"
+  sleep 5
+done
+
+ophalen() {
+  for poging in 1 2 3; do
+    git fetch --depth 1 origin "refs/tags/$TAG:refs/tags/$TAG" && return 0
+    echo "ophalen mislukt (poging $poging), opnieuw over 10 s"
+    sleep 10
+  done
+  return 1
+}
+
+if ophalen && git -c advice.detachedHead=false checkout --force "$TAG"; then
   # markeren vóór install.sh: die herstart de agent, en de nieuwe agent leest dan "klaar"
   markeer klaar
   ./install.sh --update || { markeer mislukt; exit 1; }

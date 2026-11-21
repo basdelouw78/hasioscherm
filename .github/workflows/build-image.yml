@@ -20,6 +20,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          # Geen build-token in .git/config van het image (dat verloopt en
+          # laat 'git fetch' op het scherm mislukken).
+          persist-credentials: false
 
       - name: Versie bepalen
         id: versie

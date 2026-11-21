@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 
 import re
+from pathlib import Path
 
 from . import __version__, alleen_lezen, fabrieksreset, localweb, system
 from .backlight import Backlight
@@ -70,6 +71,7 @@ class App:
         self.volgende_updatecontrole = 0.0
         self.reset_bevestig_tot = 0.0
         self.gestart = time.time()
+        self.volgende_diagnose = time.time() + 90
         self._last_period: str | None = None
         self._last_in_window: bool | None = None
         self.ro_status = ""
@@ -89,7 +91,9 @@ class App:
         self.client.will_set(f"{self.base}/status", "offline", retain=True)
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
+        self.client.on_disconnect = self._on_disconnect
         self.client.reconnect_delay_set(1, 60)
+        self.verbroken = 0
 
     # ------------------------------------------------------------------
     # instellingen (config met overschrijving vanuit HA)
@@ -165,6 +169,16 @@ class App:
         self.publish_stats()
         # Na (her)verbinden de update-entiteit snel bijwerken.
         self.volgende_updatecontrole = min(self.volgende_updatecontrole, time.time() + 5)
+
+    def _on_disconnect(self, client, userdata, *args) -> None:
+        # paho 1.x: (rc); paho 2.x: (flags, reason_code, properties)
+        rc = args[1] if len(args) >= 2 else (args[0] if args else "?")
+        self.verbroken += 1
+        hint = ""
+        if str(rc) in ("7", "Unspecified error", "Session taken over") or "taken over" in str(rc):
+            hint = (" - mogelijk gebruikt een ander apparaat dezelfde MQTT-client-id "
+                    f"(hasioscherm_{self.dev_id}), bijv. een tweede scherm met dezelfde naam")
+        log.warning("MQTT-verbinding verbroken (reden: %s, %d keer sinds start)%s", rc, self.verbroken, hint)
 
     def _on_message(self, client, userdata, msg):
         payload = msg.payload.decode("utf-8", errors="ignore").strip()
@@ -248,6 +262,8 @@ class App:
                 self.install_update()
         elif name == "fabrieksreset":
             self.fabrieksreset_knop()
+        elif name == "diagnose":
+            self.volgende_diagnose = 0.0
         elif name == "update_controleren":
             self.volgende_updatecontrole = 0.0
         elif name == "beveiligde_modus":
@@ -344,6 +360,7 @@ class App:
             ("screenshot", "Screenshot maken", "mdi:camera", None),
             ("setup", "Setup openen", "mdi:cog", "config"),
             ("update_controleren", "Updates controleren", "mdi:update", "config"),
+            ("diagnose", "Diagnose bijwerken", "mdi:text-box-search", "diagnostic"),
             ("fabrieksreset", "Fabrieksreset (2x drukken)", "mdi:restore-alert", "config"),
             ("browser_herstarten", "Browser herstarten", "mdi:restart", "config"),
             ("herstarten", "Herstarten", "mdi:restart-alert", "config"),
@@ -400,6 +417,11 @@ class App:
         disc("sensor", "updatecontrole", {
             "name": "Updatecontrole", "state_topic": st, "value_template": "{{ value_json.updatecontrole }}",
             "icon": "mdi:update", "entity_category": "diagnostic",
+        })
+        disc("sensor", "diagnose", {
+            "name": "Diagnose", "state_topic": f"{b}/diagnose_tijd",
+            "json_attributes_topic": f"{b}/diagnose", "icon": "mdi:text-box-search",
+            "entity_category": "diagnostic", "device_class": "timestamp",
         })
         disc("image", "screenshot", {
             "name": "Screenshot", "image_topic": f"{b}/screenshot", "content_type": "image/jpeg",
@@ -468,6 +490,42 @@ class App:
             "brightness": self.backlight.get_percent() if self.backlight.available else self.target_brightness(),
             "color_mode": "brightness",
         }), retain=True)
+
+    def publish_diagnose(self) -> None:
+        """Laatste logregels als attributen van de sensor 'Diagnose', zodat je
+        zonder SSH of toetsenbord kunt zien wat er gebeurt. Tokens gemaskeerd."""
+        def journal(unit: str, n: int) -> str:
+            try:
+                r = subprocess.run(["journalctl", "-u", unit, "-b", "-n", str(n), "--no-pager", "-o", "short-iso"],
+                                   capture_output=True, text=True, timeout=15)
+                return r.stdout
+            except (OSError, subprocess.TimeoutExpired) as e:
+                return f"(niet leesbaar: {e})"
+
+        def staart(pad: str, n: int) -> str:
+            try:
+                with open(pad, encoding="utf-8", errors="replace") as f:
+                    return "".join(f.readlines()[-n:])
+            except OSError:
+                return "(geen)"
+
+        def schoon(t: str, maxlen: int = 6000) -> str:
+            t = mask_url(t)
+            t = re.sub(r"(?i)(authorization:\s*\S+\s+)\S+", r"\1***", t)
+            t = re.sub(r"(?i)((?:token|password|wachtwoord)\W{1,3})[A-Za-z0-9._\-]{12,}", r"\1***", t)
+            return t[-maxlen:]
+
+        attrs = {
+            "versie": __version__,
+            "agent": schoon(journal("hasioscherm-agent.service", 60)),
+            "kiosk": schoon(journal("hasioscherm-kiosk.service", 25), 3000),
+            "update": schoon(staart("/var/log/hasioscherm-update.log", 40), 4000),
+            "wijzigingen": schoon(staart(str(Path(os.environ.get("HASIOSCHERM_CHANGELOG",
+                                                             "/boot/firmware/hasioscherm-wijzigingen.log"))), 25), 3000),
+            "bestandssysteem": self.bestandssysteem_status(),
+        }
+        self.client.publish(f"{self.base}/diagnose", json.dumps(attrs), retain=True)
+        self.client.publish(f"{self.base}/diagnose_tijd", _iso(time.time()), retain=True)
 
     def publish_stats(self) -> None:
         s = system.snapshot()
@@ -731,6 +789,7 @@ class App:
         # Eerste controle kort na het opstarten (netwerk krijgt even de tijd).
         self.volgende_updatecontrole = time.time() + 45
         laatste_auto_nacht = ""
+        self.volgende_diagnose = time.time() + 90
         last_in_gebruik = None
         while True:
             now = time.time()
@@ -743,6 +802,12 @@ class App:
                 if now >= next_stats:
                     next_stats = now + STATS_INTERVAL
                     self.publish_stats()
+                if now >= self.volgende_diagnose:
+                    self.volgende_diagnose = now + 900
+                    try:
+                        self.publish_diagnose()
+                    except Exception:  # noqa: BLE001
+                        log.exception("Diagnose publiceren mislukt")
                 if now >= next_wd:
                     next_wd = now + WATCHDOG_INTERVAL
                     self.watchdog()

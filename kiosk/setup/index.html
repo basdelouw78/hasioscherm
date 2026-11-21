@@ -48,6 +48,12 @@
     overscroll-behavior: contain; }
   footer { flex: none; }
   .lijst { touch-action: none; }
+  .onderdelen { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 10px; }
+  .onderdelen button { display: flex; align-items: center; gap: 20px; text-align: left; padding: 24px 26px;
+    border: 2px solid var(--rand); background: #12171e; }
+  .onderdelen .ico { font-size: 40px; width: 52px; text-align: center; }
+  .onderdelen b { display: block; font-size: 24px; margin-bottom: 6px; }
+  .onderdelen small { color: var(--zacht); font-size: 17px; }
   .talen { display: grid; grid-template-columns: repeat(3, minmax(220px, 300px)); gap: 20px; margin-top: 10px; }
   .talen button { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 30px 20px;
     border: 2px solid var(--rand); background: #12171e; font-size: 26px; }
@@ -278,7 +284,17 @@ const VERTALING = /*VERTALING*/{
 "Ja, alles wissen": "Yes, erase everything",
 "Bezig met wissen. Het scherm herstart zo en begint daarna met de setup.": "Erasing. The screen will restart shortly and then begin the setup.",
 "De instellingen zijn opgeslagen. Het scherm start nu één keer opnieuw op om de beveiligde modus aan te zetten (ongeveer een minuut) en toont daarna het dashboard.": "The settings have been saved. The screen now reboots once to enable protected mode (about a minute) and then shows the dashboard.",
-"Even geduld…": "Please wait…"
+"Even geduld…": "Please wait…",
+"Instellingen": "Settings",
+"Scherm & dashboard": "Screen & dashboard",
+"Naam, stand, stijl, pagina/dashboard, browser": "Name, orientation, style, page/dashboard, browser",
+"Scherm uit, helderheid dag/nacht, vaste tijden, updates, beveiligde modus": "Screen off, day/night brightness, fixed times, updates, protected mode",
+"Bewegingssensor en telefoonmeldingen": "Motion sensor and phone alerts",
+"Wifi en IP-adres": "Wi-Fi and IP address",
+"Kies wat je wilt aanpassen. De koppeling met Home Assistant blijft gewoon staan; je ziet eerst wat er verandert.": "Choose what you want to change. The connection with Home Assistant stays as it is; you see what changes first.",
+"Volledige setup": "Full setup",
+"Alles opnieuw doorlopen, ook Home Assistant opnieuw koppelen": "Go through everything again, including reconnecting Home Assistant",
+"Opslaan": "Save"
 },
 "de": {
 "Fout": "Fehler",
@@ -404,7 +420,17 @@ const VERTALING = /*VERTALING*/{
 "Ja, alles wissen": "Ja, alles löschen",
 "Bezig met wissen. Het scherm herstart zo en begint daarna met de setup.": "Wird gelöscht. Der Bildschirm startet gleich neu und beginnt dann mit dem Setup.",
 "De instellingen zijn opgeslagen. Het scherm start nu één keer opnieuw op om de beveiligde modus aan te zetten (ongeveer een minuut) en toont daarna het dashboard.": "Die Einstellungen wurden gespeichert. Der Bildschirm startet jetzt einmal neu, um den geschützten Modus einzuschalten (etwa eine Minute), und zeigt danach das Dashboard.",
-"Even geduld…": "Einen Moment…"
+"Even geduld…": "Einen Moment…",
+"Instellingen": "Einstellungen",
+"Scherm & dashboard": "Bildschirm & Dashboard",
+"Naam, stand, stijl, pagina/dashboard, browser": "Name, Ausrichtung, Stil, Seite/Dashboard, Browser",
+"Scherm uit, helderheid dag/nacht, vaste tijden, updates, beveiligde modus": "Bildschirm aus, Helligkeit Tag/Nacht, feste Zeiten, Updates, geschützter Modus",
+"Bewegingssensor en telefoonmeldingen": "Bewegungsmelder und Handy-Meldungen",
+"Wifi en IP-adres": "WLAN und IP-Adresse",
+"Kies wat je wilt aanpassen. De koppeling met Home Assistant blijft gewoon staan; je ziet eerst wat er verandert.": "Wähle, was du ändern möchtest. Die Verbindung zu Home Assistant bleibt bestehen; du siehst zuerst, was sich ändert.",
+"Volledige setup": "Vollständiges Setup",
+"Alles opnieuw doorlopen, ook Home Assistant opnieuw koppelen": "Alles erneut durchlaufen, auch Home Assistant neu verbinden",
+"Opslaan": "Speichern"
 }
 }/*EINDE*/;
 function t(nl, ...args) {
@@ -435,7 +461,7 @@ const S = {
 const T = { ingelogd: false, mfa: false, haGegevens: null, haTest: null, setupKlaar: false,
             netwerk: null, wifi: null, plan: null, bezig: false, melding: null };
 
-const STAPPEN = [
+const STAPPEN_VOL = [
   {id: "taal", titel: () => "Taal · Language"},
   {id: "scherm", titel: () => t("Scherm")},
   {id: "netwerk", titel: () => t("Netwerk")},
@@ -445,7 +471,30 @@ const STAPPEN = [
   {id: "automatisch", titel: () => t("Beweging & meldingen")},
   {id: "overzicht", titel: () => t("Overzicht")},
 ];
+let STAPPEN = STAPPEN_VOL;
 let stap = 0;
+const MENU = [{id: "menu", titel: () => t("Instellingen")}];
+// Snel aanpassen: één onderdeel wijzigen zonder de hele setup; de koppeling
+// met Home Assistant/MQTT blijft dan zoals ze is.
+const ONDERDELEN = [
+  ["scherm", "🖥", () => t("Scherm & dashboard"), () => t("Naam, stand, stijl, pagina/dashboard, browser")],
+  ["gedrag", "🌙", () => t("Gedrag"), () => t("Scherm uit, helderheid dag/nacht, vaste tijden, updates, beveiligde modus")],
+  ["automatisch", "🚶", () => t("Beweging & meldingen"), () => t("Bewegingssensor en telefoonmeldingen")],
+  ["netwerk", "📶", () => t("Netwerk"), () => t("Wifi en IP-adres")],
+  ["taal", "🌐", () => "Taal · Language", () => "Nederlands · English · Deutsch"],
+];
+function naarMenu() {
+  STAPPEN = MENU; stap = 0; T.plan = null; T.melding = null; S.koppeling = "behouden"; tbSluit(); teken();
+}
+function snelOnderdeel(id) {
+  const o = STAPPEN_VOL.find(x => x.id === id);
+  STAPPEN = [o, STAPPEN_VOL.find(x => x.id === "overzicht")];
+  stap = 0; S.koppeling = "behouden"; T.melding = null; teken(); bijBinnenkomst(id);
+}
+function volledigeSetup() {
+  STAPPEN = STAPPEN_VOL; stap = 0; S.koppeling = T.koppelingOrigineel || "automatisch"; T.melding = null;
+  teken(); bijBinnenkomst(STAPPEN[0].id);
+}
 
 /* ---------------- scrollen met touch ---------------- */
 // De kioskbrowser scrolt niet altijd zelf bij vegen; daarom doen we het hier.
@@ -692,6 +741,14 @@ const SCHERMEN = {
       ${S.beweging.entiteit ? schuif(t("Scherm uit na zoveel minuten zonder beweging (0 = niet)"), "beweging.uit_na_minuten", 0, 60, 1, "min") : ""}`;
   },
 
+  menu: () => `
+    <h2>${t("Instellingen")}</h2>
+    <p class="uitleg">${t("Kies wat je wilt aanpassen. De koppeling met Home Assistant blijft gewoon staan; je ziet eerst wat er verandert.")}</p>
+    <div class="onderdelen">${ONDERDELEN.map(([id, ico, titel, sub]) =>
+      `<button data-onderdeel="${id}"><span class="ico">${ico}</span><span><b>${esc(titel())}</b><small>${esc(sub())}</small></span></button>`).join("")}
+      <button data-volledig="1"><span class="ico">🔁</span><span><b>${t("Volledige setup")}</b><small>${t("Alles opnieuw doorlopen, ook Home Assistant opnieuw koppelen")}</small></span></button>
+    </div>`,
+
   overzicht: () => {
     if (T.klaar) return `<h2>${t("Klaar!")}</h2>
       <div class="melding goed">${T.herstart === "systeem"
@@ -741,10 +798,13 @@ function teken() {
   $("#terug").textContent = t("Terug");
   $("#sluiten").textContent = t("Sluiten");
   $("#resetlabel").textContent = t("Fabrieksreset");
-  $("#terug").style.visibility = stap === 0 || T.klaar ? "hidden" : "visible";
+  const snel = T.setupKlaar && STAPPEN !== STAPPEN_VOL;
+  $("#terug").style.visibility = T.klaar || (stap === 0 && !(T.setupKlaar && STAPPEN !== MENU)) ? "hidden" : "visible";
+  $("#verder").style.display = id === "menu" ? "none" : "";
   $("#sluiten").style.display = T.setupKlaar && !T.klaar ? "" : "none";
   const v = $("#verder");
-  v.textContent = T.klaar ? t("Naar dashboard") : id === "overzicht" ? (T.bezig ? t("Bezig…") : t("Bevestigen")) : t("Volgende");
+  v.textContent = T.klaar ? t("Naar dashboard") : id === "overzicht" ? (T.bezig ? t("Bezig…") : t("Bevestigen"))
+    : snel ? t("Opslaan") : t("Volgende");
   v.disabled = T.wacht || (!T.klaar && !magVerder(id));
   $("#versie").textContent = T.versie ? t("versie {0}", T.versie) : "setup";
 }
@@ -766,6 +826,8 @@ document.addEventListener("click", async e => {
   const b = e.target.closest("button, .schakel"); if (!b || b.closest("#tb")) return;
   try {
     if (b.dataset.taal) { zetTaal(b.dataset.taal); return teken(); }
+    if (b.dataset.onderdeel) return snelOnderdeel(b.dataset.onderdeel);
+    if (b.dataset.volledig) return volledigeSetup();
     if (b.dataset.keuze) { zet(b.dataset.keuze, JSON.parse(b.dataset.waarde)); T.melding = null; return teken(); }
     if (b.dataset.sel !== undefined) { zet(b.dataset.sel, b.dataset.waarde); return teken(); }
     if (b.dataset.schakel) { const p = b.dataset.schakel; zet(p, !p.split(".").reduce((o, k) => o[k], S)); return teken(); }
@@ -810,7 +872,10 @@ document.addEventListener("click", async e => {
   }
 });
 
-$("#terug").onclick = () => { if (stap > 0) { stap--; tbSluit(); teken(); bijBinnenkomst(STAPPEN[stap].id); } };
+$("#terug").onclick = () => {
+  if (stap > 0) { stap--; tbSluit(); teken(); bijBinnenkomst(STAPPEN[stap].id); }
+  else if (T.setupKlaar && STAPPEN !== MENU) naarMenu();
+};
 $("#sluiten").onclick = async () => { await api("afbreken", {}).catch(() => {}); location.replace("/offline.html"); };
 $("#verder").onclick = async () => {
   tbSluit();
@@ -898,6 +963,9 @@ async function naarDashboard() {
     T.updTokenIngesteld = !!h.updates.token_ingesteld;
     S.mqtt = {host: h.mqtt.host, port: h.mqtt.port, gebruiker: h.mqtt.gebruiker, wachtwoord: ""};
     S.gedrag.timeout_minuten = Number(S.gedrag.timeout_minuten);
+    T.koppelingOrigineel = h.koppeling;
+    const q = new URLSearchParams(location.search);
+    if (h.setup_klaar && q.get("volledig") !== "1") { STAPPEN = MENU; S.koppeling = "behouden"; }
   } catch (e) { T.melding = {soort: "fout", tekst: t("Kon instellingen niet laden: {0}", e.message)}; }
   teken();
   $("#resetlabel").textContent = t("Fabrieksreset");

@@ -209,9 +209,23 @@ class SetupWizard:
     # ------------------------------------------------------------------
     # plan + uitvoeren
     # ------------------------------------------------------------------
+    def _valideer(self, body: dict) -> dict:
+        inst = valideer(body)
+        if inst["koppeling"] == "behouden":
+            # Snel aanpassen: de bestaande koppeling met HA/MQTT blijft staan.
+            if not self.cfg.setup_klaar:
+                raise ValueError("Er is nog geen koppeling om te behouden; doorloop de volledige setup")
+            inst["behouden"] = True
+            inst["koppeling"] = self.cfg.koppeling
+            inst["ha_url"] = self.cfg.ha_url
+            inst["mqtt"] = {"host": self.cfg.mqtt_host, "port": self.cfg.mqtt_port,
+                            "gebruiker": self.cfg.mqtt_user, "wachtwoord": ""}
+            inst["ha_token"] = ""
+        return inst
+
     def r_plan(self, body, q):
         try:
-            inst = valideer(body)
+            inst = self._valideer(body)
         except ValueError as e:
             return 400, {"fout": str(e)}
         return 200, {"stappen": [s["tekst"] for s in self.maak_plan(inst)]}
@@ -225,7 +239,7 @@ class SetupWizard:
 
         naam = inst["naam"]
         stappen: list[dict] = []
-        if inst["koppeling"] == "automatisch":
+        if inst["koppeling"] == "automatisch" and not inst.get("behouden"):
             username = f"hasioscherm_{dev_id}"
             bestaat = None
             try:
@@ -306,7 +320,7 @@ class SetupWizard:
         if not self.lock.acquire(blocking=False):
             return 409, {"fout": "Setup is al bezig"}
         try:
-            inst = valideer(body)
+            inst = self._valideer(body)
             return 200, self.toepassen(inst)
         except (ValueError, HAFout) as e:
             schrijf_wijziging(f"Setup afgebroken: {e}")
@@ -322,7 +336,7 @@ class SetupWizard:
         mqtt_pw = inst["mqtt"]["wachtwoord"] or self.cfg.mqtt_password
         ha_token = inst["ha_token"] or self.cfg.ha_token
         url = inst["ha_url"]
-        schrijf_wijziging(f"=== Setup gestart voor '{inst['naam']}' (hasioscherm {__version__}) ===")
+        schrijf_wijziging(f"=== {'Instellingen aangepast' if inst.get('behouden') else 'Setup gestart'} voor '{inst['naam']}' (hasioscherm {__version__}) ===")
 
         for stap in self.maak_plan(inst):
             a = stap["actie"]
@@ -473,7 +487,7 @@ def valideer(b: dict) -> dict:
     if not ha_url:
         raise ValueError("Vul het adres van Home Assistant in")
     koppeling = b.get("koppeling", "automatisch")
-    if koppeling not in ("automatisch", "handmatig"):
+    if koppeling not in ("automatisch", "handmatig", "behouden"):
         raise ValueError("Onbekende koppeling")
     m = b.get("mqtt") or {}
     mqtt = {

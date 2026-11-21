@@ -209,6 +209,16 @@ instellingen en het wijzigingslog.
 - Lukt het aanzetten twee keer niet, dan blijft het scherm schrijfbaar en meldt
   de sensor *aanzetten mislukt*. Zo komt het scherm nooit in een herstartlus.
 
+## Instellingen later aanpassen
+
+Is de setup al eens doorlopen, dan opent de setup (3 vingers 4 s, knop
+**Setup openen** in HA of ⚙ op het offline-scherm) met een menu:
+**Scherm & dashboard**, **Gedrag**, **Beweging & meldingen**, **Netwerk** en
+**Taal**. Kies een onderdeel, pas aan en druk op **Opslaan**; je ziet eerst wat
+er verandert. De koppeling met Home Assistant en MQTT blijft dan staan (geen
+nieuwe gebruiker of token). Wil je toch alles opnieuw, kies dan **Volledige
+setup**.
+
 ## Fabrieksreset
 
 Zet het scherm terug naar de toestand van een vers geflasht image: alle

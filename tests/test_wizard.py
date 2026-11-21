@@ -231,6 +231,37 @@ check(a.wizard._admin is None, "admin-sessie vergeten na setup")
 check(herstart == ["systeem"], "één systeemherstart (beveiligde modus), geen losse software-herstart")
 check("beveiligde modus aanzetten en opnieuw opstarten" in log, "systeemherstart staat in plan en log")
 
+# ---------------- snel aanpassen (setup is klaar) ----------------
+a.cfg.__dict__.update(appmod.load_config().__dict__)   # zoals na de herstart
+calls.clear(); herstart.clear()
+appmod.alleen_lezen.actief = lambda: True              # scherm draait inmiddels beveiligd
+mqtt_voor = yaml.safe_load(cfgfile.read_text())["mqtt"]
+with sync_playwright() as pw:
+    br = pw.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox"])
+    page = br.new_page(viewport={"width": 1920, "height": 1200})
+    page.goto("http://127.0.0.1:18842/setup/index.html")
+    page.wait_for_selector("button[data-onderdeel=scherm]")
+    check(page.locator("#verder").is_hidden(), "instellingenmenu zonder Volgende-knop")
+    page.screenshot(path=str(SHOTS / "9-menu.png"))
+    page.click("button[data-onderdeel=scherm]")
+    page.wait_for_selector("input[data-pad=naam]")
+    check(page.inner_text("#verder") == "Opslaan", "snel aanpassen: knop Opslaan")
+    page.click("button[data-dash=eigen]")
+    wis(page, "input[data-pad=dashboard_url]")
+    typ(page, "input[data-pad=dashboard_url]", "/local/thuis/dash.html")
+    page.click("#verder")                       # -> overzicht
+    page.wait_for_selector("ol.plan li")
+    plan2 = page.inner_text("ol.plan")
+    check("gebruiker" not in plan2 and "token" not in plan2, "snel aanpassen: geen nieuwe gebruiker/token in het plan")
+    page.click("#verder")                       # bevestigen
+    page.wait_for_selector("text=Klaar!", timeout=15000)
+    br.close()
+cfg2 = yaml.safe_load(cfgfile.read_text())
+check(cfg2["dashboard"]["url"] == "/local/thuis/dash.html", "snel aanpassen: pagina opgeslagen")
+check(cfg2["mqtt"] == mqtt_voor and cfg2["homeassistant"]["token"] == "LLAT-scherm", "snel aanpassen: koppeling ongewijzigd")
+check(not [c for c in calls if c[0] == "ws" and c[2].startswith(("config/auth", "auth/"))], "snel aanpassen: niets in HA gewijzigd")
+check(herstart == ["software"], "snel aanpassen: alleen software herstart")
+
 print(f"\nScreenshots: {SHOTS}")
 print("Resultaat:", "ALLES OK" if not fails else f"{len(fails)} fout(en): {fails}")
 sys.exit(1 if fails else 0)

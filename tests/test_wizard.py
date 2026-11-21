@@ -87,7 +87,8 @@ kioskmod.Kiosk.restart = lambda self: None
 kioskmod.Kiosk.is_running = lambda self: True
 appmod.App.check_update = lambda self: None
 herstart = []
-appmod.App.herstart_agent = lambda self, v=0: herstart.append(True)
+appmod.App.herstart_agent = lambda self, v=0: herstart.append("software")
+appmod.App.herstart_systeem_beveiligd = lambda self, v=0: herstart.append("systeem")
 
 a = appmod.App(appmod.load_config())
 threading.Thread(target=a.run, daemon=True).start()
@@ -196,6 +197,9 @@ with sync_playwright() as pw:
     check(not any(c[0] == "automation" for c in calls), "niets aangemaakt vóór bevestigen")
     page.click("#verder")                       # bevestigen
     page.wait_for_selector("text=Klaar!", timeout=15000)
+    check(page.locator("text=één keer opnieuw op").count() == 1, "melding: één herstart voor beveiligde modus")
+    page.wait_for_timeout(4000)
+    check("/setup/" in page.url, "setup blijft staan tijdens systeemherstart (geen 'niet bereikbaar')")
     page.screenshot(path=str(SHOTS / "8-klaar.png"))
     br.close()
 
@@ -224,7 +228,8 @@ check("geheim" not in cfgfile.read_text() and "tok-admin" not in cfgfile.read_te
 log = (tmp / "boot" / "hasioscherm-wijzigingen.log").read_text()
 check("Setup klaar" in log and "nieuwe gebruiker" in log, "wijzigingslog geschreven")
 check(a.wizard._admin is None, "admin-sessie vergeten na setup")
-check(herstart, "agent herstart aangevraagd")
+check(herstart == ["systeem"], "één systeemherstart (beveiligde modus), geen losse software-herstart")
+check("beveiligde modus aanzetten en opnieuw opstarten" in log, "systeemherstart staat in plan en log")
 
 print(f"\nScreenshots: {SHOTS}")
 print("Resultaat:", "ALLES OK" if not fails else f"{len(fails)} fout(en): {fails}")

@@ -276,7 +276,9 @@ const VERTALING = /*VERTALING*/{
 "Wat de setup in Home Assistant heeft aangemaakt (gebruiker, automatiseringen) blijft bestaan; het wijzigingslog op de boot-partitie noemt wat je zelf kunt opruimen.": "What the setup created in Home Assistant (user, automations) remains; the change log on the boot partition lists what you can clean up yourself.",
 "Annuleren": "Cancel",
 "Ja, alles wissen": "Yes, erase everything",
-"Bezig met wissen. Het scherm herstart zo en begint daarna met de setup.": "Erasing. The screen will restart shortly and then begin the setup."
+"Bezig met wissen. Het scherm herstart zo en begint daarna met de setup.": "Erasing. The screen will restart shortly and then begin the setup.",
+"De instellingen zijn opgeslagen. Het scherm start nu één keer opnieuw op om de beveiligde modus aan te zetten (ongeveer een minuut) en toont daarna het dashboard.": "The settings have been saved. The screen now reboots once to enable protected mode (about a minute) and then shows the dashboard.",
+"Even geduld…": "Please wait…"
 },
 "de": {
 "Fout": "Fehler",
@@ -400,7 +402,9 @@ const VERTALING = /*VERTALING*/{
 "Wat de setup in Home Assistant heeft aangemaakt (gebruiker, automatiseringen) blijft bestaan; het wijzigingslog op de boot-partitie noemt wat je zelf kunt opruimen.": "Was das Setup in Home Assistant angelegt hat (Benutzer, Automatisierungen), bleibt bestehen; das Änderungsprotokoll auf der Boot-Partition nennt, was du selbst aufräumen kannst.",
 "Annuleren": "Abbrechen",
 "Ja, alles wissen": "Ja, alles löschen",
-"Bezig met wissen. Het scherm herstart zo en begint daarna met de setup.": "Wird gelöscht. Der Bildschirm startet gleich neu und beginnt dann mit dem Setup."
+"Bezig met wissen. Het scherm herstart zo en begint daarna met de setup.": "Wird gelöscht. Der Bildschirm startet gleich neu und beginnt dann mit dem Setup.",
+"De instellingen zijn opgeslagen. Het scherm start nu één keer opnieuw op om de beveiligde modus aan te zetten (ongeveer een minuut) en toont daarna het dashboard.": "Die Einstellungen wurden gespeichert. Der Bildschirm startet jetzt einmal neu, um den geschützten Modus einzuschalten (etwa eine Minute), und zeigt danach das Dashboard.",
+"Even geduld…": "Einen Moment…"
 }
 }/*EINDE*/;
 function t(nl, ...args) {
@@ -690,7 +694,10 @@ const SCHERMEN = {
 
   overzicht: () => {
     if (T.klaar) return `<h2>${t("Klaar!")}</h2>
-      <div class="melding goed">${t("De instellingen zijn opgeslagen. Het scherm herstart de software en toont daarna het dashboard.")}</div>
+      <div class="melding goed">${T.herstart === "systeem"
+        ? t("De instellingen zijn opgeslagen. Het scherm start nu één keer opnieuw op om de beveiligde modus aan te zetten (ongeveer een minuut) en toont daarna het dashboard.")
+        : t("De instellingen zijn opgeslagen. Het scherm herstart de software en toont daarna het dashboard.")}</div>
+      ${T.wacht ? `<p class="uitleg">${t("Even geduld…")}</p>` : ""}
       <ol class="plan">${T.klaar.map(x => `<li class="gedaan">✓ ${esc(x)}</li>`).join("")}</ol>
       <p class="uitleg">${t("Elke wijziging staat ook in <b>hasioscherm-wijzigingen.log</b> op de boot-partitie.")}</p>`;
     return `<h2>${t("Overzicht")}</h2>
@@ -738,7 +745,7 @@ function teken() {
   $("#sluiten").style.display = T.setupKlaar && !T.klaar ? "" : "none";
   const v = $("#verder");
   v.textContent = T.klaar ? t("Naar dashboard") : id === "overzicht" ? (T.bezig ? t("Bezig…") : t("Bevestigen")) : t("Volgende");
-  v.disabled = !T.klaar && !magVerder(id);
+  v.disabled = T.wacht || (!T.klaar && !magVerder(id));
   $("#versie").textContent = T.versie ? t("versie {0}", T.versie) : "setup";
 }
 
@@ -807,14 +814,16 @@ $("#terug").onclick = () => { if (stap > 0) { stap--; tbSluit(); teken(); bijBin
 $("#sluiten").onclick = async () => { await api("afbreken", {}).catch(() => {}); location.replace("/offline.html"); };
 $("#verder").onclick = async () => {
   tbSluit();
-  if (T.klaar) { setTimeout(() => location.replace("/offline.html"), 500); return; }
+  if (T.klaar) { naarDashboard(); return; }
   const id = STAPPEN[stap].id;
   if (id === "overzicht") {
     T.bezig = true; teken();
-    try { T.klaar = (await api("toepassen", S)).gedaan; }
+    let oudeStart = null;
+    try { oudeStart = (await (await fetch("/api/status", {cache: "no-store"})).json()).gestart; } catch (e) {}
+    try { const r = await api("toepassen", S); T.klaar = r.gedaan; T.herstart = r.herstart; T.oudeStart = oudeStart; }
     catch (e) { T.melding = {soort: "fout", tekst: e.message}; }
     T.bezig = false; teken();
-    if (T.klaar) setTimeout(() => location.replace("/offline.html"), 8000);
+    if (T.klaar) naarDashboard();
     return;
   }
   stap++; teken(); bijBinnenkomst(STAPPEN[stap].id);
@@ -852,6 +861,27 @@ document.addEventListener("click", async e => {
     $("#resetvenster .kader").insertAdjacentHTML("beforeend", `<div class="melding fout">${esc(err.message)}</div>`);
   }
 }, true);
+
+/* ---------------- na de setup ---------------- */
+// Pas doorgaan als de software op het scherm echt opnieuw gestart is; anders
+// toont de browser "pagina niet bereikbaar". Bij een herstart van het hele
+// systeem gebeurt niets: de browser start daarna vanzelf op de goede pagina.
+async function naarDashboard() {
+  if (T.wacht) return;
+  T.wacht = true; teken();
+  $("#verder").disabled = true;
+  if (T.herstart === "systeem") return;
+  const begin = Date.now();
+  await new Promise(r => setTimeout(r, 2500));
+  while (Date.now() - begin < 120000) {
+    try {
+      const s = await (await fetch("/api/status", {cache: "no-store"})).json();
+      if (s.gestart && s.gestart !== T.oudeStart) { location.replace("/offline.html"); return; }
+    } catch (e) { /* software start nog */ }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  location.replace("/offline.html");
+}
 
 /* ---------------- start ---------------- */
 (async () => {

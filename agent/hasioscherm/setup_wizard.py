@@ -288,9 +288,18 @@ class SetupWizard:
         stappen.append({"actie": "config", "tekst": t(f"Scherm: instellingen opslaan in {config_write_path()}",
                                                       f"Screen: save settings to {config_write_path()}",
                                                       f"Bildschirm: Einstellungen speichern in {config_write_path()}")})
-        stappen.append({"actie": "herstart", "tekst": t("Scherm: software herstarten met de nieuwe instellingen",
-                                                        "Screen: restart the software with the new settings",
-                                                        "Bildschirm: Software mit den neuen Einstellungen neu starten")})
+        from . import alleen_lezen  # hier: alleen_lezen importeert deze module
+        if inst["systeem"]["alleen_lezen"] and not alleen_lezen.actief():
+            # Eén herstart van het hele systeem i.p.v. eerst de software en
+            # daarna nog eens het systeem voor de beveiligde modus.
+            stappen.append({"actie": "herstart_systeem",
+                            "tekst": t("Scherm: beveiligde modus aanzetten en opnieuw opstarten (ongeveer een minuut)",
+                                       "Screen: enable protected mode and reboot (about a minute)",
+                                       "Bildschirm: geschützten Modus einschalten und neu starten (etwa eine Minute)")})
+        else:
+            stappen.append({"actie": "herstart", "tekst": t("Scherm: software herstarten met de nieuwe instellingen",
+                                                            "Screen: restart the software with the new settings",
+                                                            "Bildschirm: Software mit den neuen Einstellungen neu starten")})
         return stappen
 
     def r_toepassen(self, body, q):
@@ -308,6 +317,7 @@ class SetupWizard:
     def toepassen(self, inst: dict) -> dict:
         dev_id = slugify(inst["naam"])
         gedaan: list[str] = []
+        herstart = "software"
         mqtt_user = inst["mqtt"]["gebruiker"]
         mqtt_pw = inst["mqtt"]["wachtwoord"] or self.cfg.mqtt_password
         ha_token = inst["ha_token"] or self.cfg.ha_token
@@ -376,12 +386,18 @@ class SetupWizard:
                 self.schrijf_config(inst, mqtt_user, mqtt_pw, ha_token)
             elif a == "herstart":
                 self._vergeet_admin()
+                herstart = "software"
                 threading.Thread(target=self.app.herstart_agent, args=(2.0,), daemon=True).start()
+            elif a == "herstart_systeem":
+                self._vergeet_admin()
+                herstart = "systeem"
+                self.app.state.set("alleen_lezen", True)
+                threading.Thread(target=self.app.herstart_systeem_beveiligd, args=(2.0,), daemon=True).start()
             schrijf_wijziging(stap["tekst"])
             gedaan.append(stap["tekst"])
 
         schrijf_wijziging("=== Setup klaar ===")
-        return {"ok": True, "gedaan": gedaan}
+        return {"ok": True, "gedaan": gedaan, "herstart": herstart}
 
     def schrijf_config(self, inst: dict, mqtt_user: str, mqtt_pw: str, ha_token: str) -> None:
         c = self.cfg

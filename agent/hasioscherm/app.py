@@ -69,6 +69,7 @@ class App:
         self.latest_version: str | None = None
         self.volgende_updatecontrole = 0.0
         self.reset_bevestig_tot = 0.0
+        self.gestart = time.time()
         self._last_period: str | None = None
         self._last_in_window: bool | None = None
         self.ro_status = ""
@@ -419,6 +420,22 @@ class App:
             self.client.publish(f"{self.base}/{t}", "", retain=True)
         log.info("Discovery van '%s' verwijderd", self.dev_id)
 
+    def herstart_systeem_beveiligd(self, vertraging: float = 0) -> None:
+        """Na de setup: beveiligde modus aanzetten en in één keer het hele
+        systeem herstarten (anders volgt na de software-herstart nog een)."""
+        time.sleep(vertraging)
+        try:
+            self.client.publish(f"{self.base}/status", "offline", retain=True)
+        except Exception:  # noqa: BLE001
+            pass
+        if alleen_lezen.zet_aan():
+            from .setup_wizard import schrijf_wijziging
+            schrijf_wijziging("Beveiligde modus aangezet na de setup, herstart")
+            alleen_lezen.herstart()
+        else:
+            log.error("Beveiligde modus aanzetten mislukt; alleen de software herstart")
+            self.herstart_agent()
+
     def herstart_agent(self, vertraging: float = 0) -> None:
         """Stop het proces; systemd start de agent opnieuw met de nieuwe config."""
         time.sleep(vertraging)
@@ -684,6 +701,7 @@ class App:
             "versie": __version__,
             "setup_nodig": self.wizard.nodig,
             "taal": self.cfg.taal,
+            "gestart": self.gestart,
         })}
         # Gegevens voor het meegeleverde standaarddashboard. Alleen bereikbaar
         # vanaf het scherm zelf (127.0.0.1) en zonder CORS, dus andere pagina's

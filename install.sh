@@ -59,9 +59,11 @@ fi
 log "Bestanden kopiëren naar $DEST"
 mkdir -p "$DEST"
 if [ "$SRC" != "$DEST" ]; then
-  # .git meenemen zodat updates via git kunnen.
   cp -a "$SRC/." "$DEST/"
 fi
+# Altijd van root: bij het bouwen hielden de bestanden de eigenaar van de
+# bouwomgeving, waardoor 'git' als root weigerde ("dubious ownership").
+chown -R root:root "$DEST" 2>/dev/null || true
 chmod +x "$DEST/install.sh" "$DEST/update.sh" "$DEST/kiosk/start-browser.sh" "$DEST/kiosk/diagnose.sh" "$DEST/kiosk/touch-kalibratie.sh"
 
 log "Configuratie"

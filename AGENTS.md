@@ -6,7 +6,7 @@
 - Wijzigingen in Home Assistant nooit ongemerkt: altijd eerst tonen/bevestigen en loggen.
 - Agent: `agent/hasioscherm` (Python, alleen Debian-pakketten: paho-mqtt, evdev, psutil, yaml).
 - Kiosk: cage + cog (`kiosk/start-browser.sh`), chromium als terugvaloptie.
-- Tests: `mosquitto -p 18830 -d && python3 tests/test_agent_mqtt.py && python3 tests/test_alleen_lezen.py && python3 tests/test_fabrieksreset.py && python3 tests/test_dashboard.py && python3 tests/test_wizard.py` (wizardtest gebruikt playwright + chrome en een nep-HA).
+- Tests: `mosquitto -p 18830 -d && python3 tests/test_agent_mqtt.py && python3 tests/test_alleen_lezen.py && python3 tests/test_fabrieksreset.py && python3 tests/test_gebaar.py && python3 tests/test_dashboard.py && python3 tests/test_wizard.py` (wizardtest gebruikt playwright + chrome en een nep-HA).
 - Setup-wizard: `kiosk/setup/index.html` (eigen schermtoetsenbord, geen native select) + `agent/hasioscherm/setup_wizard.py`. HA-wijzigingen altijd via plan → bevestigen → uitvoeren → wijzigingslog.
 - Image: pi-gen stage in `image/stage-hasioscherm`, gebouwd door `.github/workflows/build-image.yml`; die stage draait `install.sh` in de chroot.
 - Beveiligde modus: `agent/hasioscherm/alleen_lezen.py` (raspi-config overlayfs, updates via markeerbestand op de boot-partitie: uitschakelen → installeren → klaar/mislukt → terug aan). Nooit een herstartlus: pogingen worden geteld.

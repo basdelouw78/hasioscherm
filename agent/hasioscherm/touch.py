@@ -59,6 +59,8 @@ class TouchWatcher(threading.Thread):
         self._slots: set[int] = set()
         self._slot = 0
         self._gebaar_timer: threading.Timer | None = None
+        self._drie_sinds: float | None = None
+        self._laatst_drie = 0.0
         self.last_touch = 0.0
         self._grabbed = False
         self._down = False
@@ -112,19 +114,44 @@ class TouchWatcher(threading.Thread):
             time.sleep(2)
 
     # ---- gebaar: 3 vingers 4 seconden vasthouden -> setup openen ----
+    # Touchpanelen laten een vinger soms heel even 'los' (trillen); een korte
+    # onderbreking (< SPELING s) breekt het gebaar daarom niet af.
+    SPELING = 0.6
+
     def _vingers_gewijzigd(self) -> None:
+        nu = time.monotonic()
         if len(self._slots) >= GEBAAR_VINGERS:
+            if self._drie_sinds is None or nu - self._laatst_drie > self.SPELING:
+                self._drie_sinds = nu
+                log.info("%d vingers op het scherm; %s s vasthouden opent de setup", len(self._slots), GEBAAR_SECONDEN)
+            self._laatst_drie = nu
             if self._gebaar_timer is None and self.on_gebaar:
-                self._gebaar_timer = threading.Timer(GEBAAR_SECONDEN, self._gebaar_klaar)
+                self._gebaar_timer = threading.Timer(0.2, self._gebaar_controle)
                 self._gebaar_timer.daemon = True
                 self._gebaar_timer.start()
-        elif self._gebaar_timer is not None:
-            self._gebaar_timer.cancel()
-            self._gebaar_timer = None
+        elif self._drie_sinds is not None:
+            self._laatst_drie = nu   # vanaf nu loopt de speling
+
+    def _gebaar_controle(self) -> None:
+        self._gebaar_timer = None
+        if self._drie_sinds is None:
+            return
+        nu = time.monotonic()
+        if len(self._slots) >= GEBAAR_VINGERS:
+            self._laatst_drie = nu
+        if nu - self._laatst_drie > self.SPELING:
+            self._drie_sinds = None          # echt losgelaten
+            return
+        if nu - self._drie_sinds >= GEBAAR_SECONDEN:
+            self._drie_sinds = None
+            self._gebaar_klaar()
+            return
+        self._gebaar_timer = threading.Timer(0.2, self._gebaar_controle)
+        self._gebaar_timer.daemon = True
+        self._gebaar_timer.start()
 
     def _gebaar_klaar(self) -> None:
-        self._gebaar_timer = None
-        if len(self._slots) >= GEBAAR_VINGERS and self.on_gebaar:
+        if self.on_gebaar:
             log.info("Gebaar herkend: %s vingers %s s vastgehouden", GEBAAR_VINGERS, GEBAAR_SECONDEN)
             try:
                 self.on_gebaar()

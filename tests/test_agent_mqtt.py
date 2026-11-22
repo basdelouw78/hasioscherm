@@ -130,5 +130,19 @@ d = msgs.get("hasioscherm/scherm_woonkamer/diagnose")
 check(d is not None and all(k in json.loads(d) for k in ("agent", "kiosk", "update", "versie")), "diagnose met logregels gepubliceerd")
 check(any(t.endswith("/diagnose/config") for t in msgs), "sensor Diagnose in discovery")
 
+# klok gelijkzetten met Home Assistant als NTP niet werkt
+gezet = []
+appmod.system.tijd_van_server = lambda url: time.time() - 250
+appmod.system.ntp_gesynchroniseerd = lambda: False
+appmod.system.zet_klok = lambda t: gezet.append(t) or True
+a.controleer_klok()
+check(len(gezet) == 1 and abs(gezet[0] - (time.time() - 250)) < 2, "klok 4 min voor: tijd van HA overgenomen")
+gezet.clear(); appmod.system.tijd_van_server = lambda url: time.time() - 3
+a.controleer_klok()
+check(not gezet, "kleine afwijking: klok niet aangepast")
+appmod.system.tijd_van_server = lambda url: time.time() - 250; appmod.system.ntp_gesynchroniseerd = lambda: True
+a.controleer_klok()
+check(not gezet, "NTP werkt: klok niet aangepast")
+
 print("\nResultaat:", "ALLES OK" if not fails else f"{len(fails)} fout(en)")
 sys.exit(1 if fails else 0)

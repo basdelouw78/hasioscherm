@@ -72,6 +72,8 @@ class App:
         self.reset_bevestig_tot = 0.0
         self.gestart = time.time()
         self.volgende_diagnose = time.time() + 90
+        self.volgende_tijdcontrole = 0.0
+        self.klok_afwijking = None
         self._last_period: str | None = None
         self._last_in_window: bool | None = None
         self.ro_status = ""
@@ -523,6 +525,8 @@ class App:
             "wijzigingen": schoon(staart(str(Path(os.environ.get("HASIOSCHERM_CHANGELOG",
                                                              "/boot/firmware/hasioscherm-wijzigingen.log"))), 25), 3000),
             "bestandssysteem": self.bestandssysteem_status(),
+            "klok_afwijking_s": self.klok_afwijking,
+            "ntp": system.ntp_gesynchroniseerd(),
         }
         self.client.publish(f"{self.base}/diagnose", json.dumps(attrs), retain=True)
         self.client.publish(f"{self.base}/diagnose_tijd", _iso(time.time()), retain=True)
@@ -744,6 +748,30 @@ class App:
         if not self.kiosk.is_running():
             log.warning("Kiosk draait niet; herstarten")
             self.kiosk.restart()
+        if ok and time.time() >= self.volgende_tijdcontrole:
+            self.volgende_tijdcontrole = time.time() + 1800
+            self.controleer_klok()
+
+    def controleer_klok(self) -> None:
+        """Loopt de klok van het scherm af (geen NTP, bijv. op een afgeschermd
+        IoT-netwerk), dan de tijd van Home Assistant overnemen. Zo kloppen
+        klok, 'laatste aanraking' en tijden in het log met HA."""
+        ha_tijd = system.tijd_van_server(self.cfg.ha_url)
+        if ha_tijd is None:
+            return
+        verschil = time.time() - ha_tijd
+        self.klok_afwijking = round(verschil)
+        if abs(verschil) < 10:
+            return
+        if system.ntp_gesynchroniseerd():
+            log.warning("Klok wijkt %.0f s af van Home Assistant, maar NTP is gesynchroniseerd; niet aangepast", verschil)
+            return
+        if system.zet_klok(ha_tijd):
+            log.warning("Klok liep %.0f s %s; tijd van Home Assistant overgenomen",
+                        abs(verschil), "voor" if verschil > 0 else "achter")
+            self.klok_afwijking = 0
+        else:
+            log.error("Klok gelijkzetten mislukt (afwijking %.0f s)", verschil)
 
     def run(self) -> None:
         log.info("hasioscherm %s start als '%s' (config: %s)", __version__, self.cfg.naam, self.cfg.pad)

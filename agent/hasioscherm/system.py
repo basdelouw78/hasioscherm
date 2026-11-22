@@ -95,3 +95,47 @@ def reachable(url: str, timeout: float = 3.0) -> bool:
             return True
     except OSError:
         return False
+
+
+def tijd_van_server(url: str, timeout: float = 5.0) -> float | None:
+    """Tijd volgens de HTTP-'Date'-kop van Home Assistant (UTC, seconden).
+    Gebruikt als terugval wanneer NTP niet werkt (bijv. een afgeschermd
+    IoT-netwerk zonder toegang tot internettijd)."""
+    import email.utils
+    import urllib.error
+    import urllib.request
+
+    if not url.startswith(("http://", "https://")):
+        return None
+    req = urllib.request.Request(url.rstrip("/") + "/manifest.json", method="HEAD",
+                                 headers={"User-Agent": "hasioscherm"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            datum = r.headers.get("Date")
+    except urllib.error.HTTPError as e:
+        datum = e.headers.get("Date") if e.headers else None
+    except OSError:
+        return None
+    if not datum:
+        return None
+    try:
+        return email.utils.parsedate_to_datetime(datum).timestamp()
+    except (TypeError, ValueError):
+        return None
+
+
+def ntp_gesynchroniseerd() -> bool | None:
+    try:
+        r = subprocess.run(["timedatectl", "show", "-p", "NTPSynchronized", "--value"],
+                           capture_output=True, text=True, timeout=10)
+        return r.stdout.strip() == "yes"
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def zet_klok(epoch: float) -> bool:
+    try:
+        r = subprocess.run(["date", "-u", "-s", f"@{epoch:.0f}"], capture_output=True, text=True, timeout=10)
+        return r.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
